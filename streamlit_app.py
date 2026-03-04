@@ -1,5 +1,6 @@
-import re
+
 import streamlit as st
+st.write("app started")
 import duckdb
 from google.cloud import storage
 from google.oauth2 import service_account
