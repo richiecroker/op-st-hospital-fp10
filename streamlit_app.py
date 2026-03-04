@@ -73,7 +73,7 @@ codes_df = pd.DataFrame({"ods_code": ods_codes})
 conn.register("_selected_hospitals", codes_df)
 
 #get data for selected hospitals
-month_items = conn.execute("""
+month_data = conn.execute("""
     SELECT month, sum(items) AS items, sum(actual_cost) AS actual_cost
     FROM prescribing AS rx
     JOIN _selected_hospitals AS s
@@ -88,3 +88,25 @@ month_items = conn.execute("""
 st.dataframe(month_items)
 #unregister virtual table
 conn.unregister("_selected_hospitals")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    fig1 = go.Figure()
+    fig1.add_trace(go.Scatter(x=month_data["month"], y=month_data["items"], mode="lines+markers"))
+    fig1.update_layout(
+        title="Items over Time",
+        xaxis=dict(type="date"),
+        yaxis_title="Items"
+    )
+    st.plotly_chart(fig1, use_container_width=True)
+
+with col2:
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(x=month_data["month"], y=month_data["actual_cost"], mode="lines+markers"))
+    fig2.update_layout(
+        title="Cost over Time",
+        xaxis=dict(type="date"),
+        yaxis_title="Cost"
+    )
+    st.plotly_chart(fig2, use_container_width=True)
