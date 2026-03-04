@@ -1,5 +1,6 @@
 import streamlit as st
 import duckdb
+import pandas as pd
 
 st.title("🎈 My new app")
 st.write(
@@ -14,3 +15,5 @@ result = conn.execute(
     SELECT
    * FROM prescribing
     """).fetchdf()
+
+df = result.copy
