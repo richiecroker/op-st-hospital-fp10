@@ -85,7 +85,6 @@ month_data = conn.execute("""
     ORDER BY month
 """).fetchdf()
 
-st.dataframe(month_items)
 #unregister virtual table
 conn.unregister("_selected_hospitals")
 
