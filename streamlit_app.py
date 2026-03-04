@@ -33,6 +33,9 @@ def get_duckdb_connection():
 
 st.title("🎈 My new app")
 
-conn = get_duckdb_connection()
-df = conn.execute("SELECT * FROM prescribing").fetchdf()
-st.dataframe(df)
+try:
+    conn = get_duckdb_connection()
+    df = conn.execute("SELECT * FROM prescribing").fetchdf()
+    st.dataframe(df)
+except Exception as e:
+    st.error(f"Error: {e}")
