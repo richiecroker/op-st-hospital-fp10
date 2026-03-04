@@ -20,5 +20,6 @@ if not os.path.exists(local_db):
     with st.spinner("Downloading..."):
         blob.download_to_filename(local_db)
 
-st.write("download done")
-st.write(os.path.getsize(local_db))
+conn = duckdb.connect(local_db)
+tables = conn.execute("SHOW TABLES").fetchdf()
+st.write(tables)))
