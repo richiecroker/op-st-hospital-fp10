@@ -17,3 +17,5 @@ result = conn.execute(
     """).fetchdf()
 
 df = result.copy
+
+st.dataframe(df)
