@@ -6,3 +6,4 @@ st.write(
 )
 
 DB_PATH = "hospitalfp10.duckdb"
+conn = duckdb.connect(DB_PATH, read_only=True)
