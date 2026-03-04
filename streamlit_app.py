@@ -73,7 +73,7 @@ conn.register("_selected_hospitals", codes_df)
 
 #get data for selected hospitals
 month_items = conn.execute("""
-    SELECT month, sum(items)
+    SELECT month, sum(items) AS items, sum(actual_cost) AS actual_cost
     FROM prescribing AS rx
     JOIN _selected_hospitals AS s
         ON CASE 
