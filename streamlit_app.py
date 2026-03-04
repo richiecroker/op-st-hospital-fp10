@@ -71,7 +71,7 @@ ods_codes = df_icb["ods_code"].unique().tolist() if sel_pr == ALL else [pr_map[s
 codes_df = pd.DataFrame({"ods_code": ods_codes})
 conn.register("_selected_hospitals", codes_df)
 
-#get OME summary data from duckdb for selected practices
+#get data for selected hospitals
 month_items = conn.execute("""
     SELECT month, sum(items)
     FROM prescribing AS rx
