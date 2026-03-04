@@ -74,13 +74,16 @@ st.divider()
 st.subheader("Download")
 
 if not tables.empty:
-    with open(DB_PATH, "rb") as f:
-        st.download_button(
-            label="⬇️ Download .duckdb file",
-            data=f,
-            file_name="output.duckdb",
-            mime="application/octet-stream",
-            type="primary",
+     with open(DB_PATH, "rb") as f:
+        data = f.read()
+    
+    st.download_button(
+        label="⬇️ Download .duckdb file",
+        data=data,
+        file_name="output.duckdb",
+        mime="application/octet-stream",
+        type="primary",
+    )
         )
 else:
     st.caption("Load at least one table to enable download.")
