@@ -76,7 +76,10 @@ month_items = conn.execute("""
     SELECT month, sum(items)
     FROM prescribing AS rx
     JOIN _selected_hospitals AS s
-      ON rx.hospital = s.ods_code
+        ON CASE 
+        WHEN LENGTH(s.ods_code) = 3 THEN LEFT(rx.hospitale, 3) = s.ods_code
+        ELSE main.code = s.ods_code
+        END
     GROUP BY month
     ORDER BY month
 """).fetchdf()
