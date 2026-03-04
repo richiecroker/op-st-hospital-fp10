@@ -7,6 +7,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import os
 
+st.set_page_config(layout="wide")
+
 @st.cache_resource
 def get_duckdb_connection():
     local_db = "/tmp/app.duckdb"
@@ -92,20 +94,20 @@ col1, col2 = st.columns(2)
 
 with col1:
     fig1 = go.Figure()
-    fig1.add_trace(go.Scatter(x=month_data["month"], y=month_data["items"], mode="lines+markers"))
+    fig1.add_trace(go.Scatter(x=month_data["month"], y=month_data["items"], mode="lines"))
     fig1.update_layout(
         title="Items over Time",
         xaxis=dict(type="date"),
-        yaxis_title="Items"
+        yaxis=dict(title="Items", rangemode="tozero")
     )
     st.plotly_chart(fig1, use_container_width=True)
 
 with col2:
     fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=month_data["month"], y=month_data["actual_cost"], mode="lines+markers"))
+    fig2.add_trace(go.Scatter(x=month_data["month"], y=month_data["actual_cost"], mode="lines"))
     fig2.update_layout(
         title="Cost over Time",
         xaxis=dict(type="date"),
-        yaxis_title="Cost"
+        yaxis=dict(title="Cost", rangemode="tozero")
     )
     st.plotly_chart(fig2, use_container_width=True)
