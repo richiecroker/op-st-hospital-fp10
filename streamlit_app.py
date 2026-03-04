@@ -74,12 +74,12 @@ conn.register("_selected_hospitals", codes_df)
 #get OME summary data from duckdb for selected practices
 month_items = conn.execute("""
     SELECT month, sum(items)
-    FROM prescribing AS r
+    FROM prescribing AS rx
     JOIN _selected_hospitals AS s
-      ON rx.hospital = h.ods_code
+      ON rx.hospital = s.ods_code
     GROUP BY month
     ORDER BY month
 """).fetchdf()
-st.datafram(month_items)
+st.dataframe(month_items)
 #unregister virtual table
 conn.unregister("_selected_hospitals")
