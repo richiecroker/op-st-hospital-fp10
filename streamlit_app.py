@@ -42,7 +42,12 @@ conn = get_duckdb_connection()
 df = conn.execute(
     """
     SELECT DISTINCT hospital
-    FROM prescribing as rx
+    FROM prescribing AS rx
+    INNER JOIN ods_mapping AS ods 
+    ON CASE 
+        WHEN LENGTH(ods.ods_code) = 3 THEN LEFT(rx.hospital, 3) = ods.ods_code
+        ELSE rx.hospital = ods.ods_code
+        END
     """
     ).fetchdf()
 st.dataframe(df)
