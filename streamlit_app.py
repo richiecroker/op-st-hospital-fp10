@@ -88,15 +88,15 @@ month_data = conn.execute("""
 """).fetchdf()
 
 top_items_data = conn.execute("""
-    SELECT bnf_name, sum(items)
+    SELECT bnf_name, sum(items) as items
     FROM prescribing AS rx
     JOIN _selected_hospitals AS s
         ON CASE 
         WHEN LENGTH(s.ods_code) = 3 THEN LEFT(rx.hospital, 3) = s.ods_code
         ELSE rx.hospital = s.ods_code
         END
-    GROUP BY month
-    ORDER BY month
+    GROUP BY bnf_name
+    ORDER BY items DESC
     LIMIT 20
 """).fetchdf()
 
