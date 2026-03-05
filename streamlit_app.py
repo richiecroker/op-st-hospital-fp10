@@ -66,21 +66,17 @@ def _rebuild_prescribing(conn):
     with open(SQL_PRESCRIBING) as f:
         sql = f.read()
     bq = _bq_client()
-    df = bq.query(sql).to_dataframe()
+    prescribing = bq.query(sql).to_dataframe()  # noqa: F841 — used by DuckDB below
     conn.execute("DROP TABLE IF EXISTS prescribing")
-    conn.register("_prescribing_df", df)
-    conn.execute("CREATE TABLE prescribing AS SELECT * FROM _prescribing_df")
-    conn.unregister("_prescribing_df")
+    conn.execute("CREATE TABLE prescribing AS SELECT * FROM prescribing")
 
 
 def _rebuild_ods_mapping(conn):
     """Pull ods_mapping from BigQuery into DuckDB."""
     bq = _bq_client()
-    df = bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe()
+    ods_mapping = bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe()  # noqa: F841
     conn.execute("DROP TABLE IF EXISTS ods_mapping")
-    conn.register("_ods_df", df)
-    conn.execute("CREATE TABLE ods_mapping AS SELECT * FROM _ods_df")
-    conn.unregister("_ods_df")
+    conn.execute("CREATE TABLE ods_mapping AS SELECT * FROM ods_mapping")
 
 
 def _save_db_to_gcs(bucket):
