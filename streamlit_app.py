@@ -140,9 +140,9 @@ with col2:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-col1, col2 = st.columns(2)
+col3, col4 = st.columns(2)
 
-with col1:
+with col3:
     st.dataframe(top_items_data)
-with col2:
+with col4:
     st.dataframe(top_cost_data)
