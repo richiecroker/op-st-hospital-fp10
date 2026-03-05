@@ -21,7 +21,7 @@ BUCKET_NAME      = "ebmdatalab"
 CSV_PREFIX       = "RC_tests/HOSPITAL_DISP_COMMUNITY_"  # blobs end in _yyyymm.csv
 GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10.duckdb"
 LOCAL_DB         = "/tmp/app.duckdb"
-SQL_PRESCRIBING  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sql", "build_prescribing.sql")
+SQL_PRESCRIBING  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries", "build_prescribing.sql")
 BQ_ODS_TABLE     = "ebmdatalab.scmd.ods_mapped"
 
 
