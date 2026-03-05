@@ -95,7 +95,7 @@ top_items_data = conn.execute("""
         WHEN LENGTH(s.ods_code) = 3 THEN LEFT(rx.hospital, 3) = s.ods_code
         ELSE rx.hospital = s.ods_code
         END
-    WHERE month >= STRFTIME('%Y%m', CURRENT_DATE - INTERVAL '3 months')
+    WHERE CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
     GROUP BY bnf_name
     ORDER BY items DESC
     LIMIT 20
