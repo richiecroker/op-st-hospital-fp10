@@ -148,4 +148,7 @@ with col1:
 
 with col2:
     st.subheader("Top 20 cost items over last 3 months")
-    st.dataframe(top_cost_data, hide_index=True)
+    st.dataframe(
+    top_cost_data.assign(**{top_cost_data.columns[1]: top_cost_data.iloc[:, 1].map("£{:,.2f}".format)}),
+    hide_index=True
+    )
