@@ -145,12 +145,12 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Top 20 items over last 3 months")
-    st.dataframe(top_items_data, hide_index=True, height=800)
+    st.dataframe(top_items_data, hide_index=True, height=740)
 
 with col2:
     st.subheader("Top 20 cost items over last 3 months")
     st.dataframe(
     top_cost_data.assign(**{top_cost_data.columns[1]: top_cost_data.iloc[:, 1].map("£{:,.2f}".format)}),
     hide_index=True,
-    height=800
+    height=740
     )
