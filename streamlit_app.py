@@ -148,27 +148,39 @@ df = conn.execute(
     """
 ).fetchdf()
 
-st.write(conn.execute("""
-    SELECT 
-        COUNT(*) as total,
-        COUNT(ods_code) as non_null_codes,
-        COUNT(ods_name) as non_null_names
-    FROM ods_mapping
-""").fetchdf())
-
 ALL = "All"
+
+# Initialise session state for selections
+if "sel_region" not in st.session_state:
+    st.session_state.sel_region = ALL
+if "sel_icb" not in st.session_state:
+    st.session_state.sel_icb = ALL
+if "sel_pr" not in st.session_state:
+    st.session_state.sel_pr = ALL
 
 # Region filter
 region_opts = [ALL] + sorted(df["region"].dropna().unique().tolist())
-sel_region = st.selectbox("Region", region_opts, index=0)
+sel_region = st.selectbox(
+    "Region",
+    region_opts,
+    index=region_opts.index(st.session_state.sel_region) if st.session_state.sel_region in region_opts else 0,
+    key="sel_region",
+)
 df_region = df if sel_region == ALL else df[df["region"] == sel_region]
 
-# ICB filter (narrowed by region, but ALL is valid final selection)
+# ICB filter — reset if current value no longer valid given region
 icb_opts = [ALL] + sorted(df_region["icb"].dropna().unique().tolist())
-sel_icb = st.selectbox("ICB", icb_opts, index=0)
+if st.session_state.sel_icb not in icb_opts:
+    st.session_state.sel_icb = ALL
+sel_icb = st.selectbox(
+    "ICB",
+    icb_opts,
+    index=icb_opts.index(st.session_state.sel_icb),
+    key="sel_icb",
+)
 df_icb = df_region if sel_icb == ALL else df_region[df_region["icb"] == sel_icb]
 
-# Hospital filter (narrowed by region+ICB, but ALL is valid final selection)
+# Hospital filter — reset if current value no longer valid given region+ICB
 pr_pairs = (
     df_icb[["ods_code", "ods_name"]]
     .drop_duplicates()
@@ -179,7 +191,14 @@ pr_map: dict[str, str] = {
     for row in pr_pairs.itertuples(index=False)
 }
 pr_opts = [ALL] + list(pr_map.keys())
-sel_pr = st.selectbox("Hospital", pr_opts, index=0)
+if st.session_state.sel_pr not in pr_opts:
+    st.session_state.sel_pr = ALL
+sel_pr = st.selectbox(
+    "Hospital",
+    pr_opts,
+    index=pr_opts.index(st.session_state.sel_pr),
+    key="sel_pr",
+)
 
 # Resolve which ODS codes to query — use the most specific selection made
 if sel_pr != ALL:
