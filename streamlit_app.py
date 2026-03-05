@@ -153,6 +153,7 @@ def get_duckdb_connection():
         conn = duckdb.connect(LOCAL_DB)
         _rebuild_prescribing(conn)
         _rebuild_ods_mapping(conn)
+        st.write("Tables after rebuild:", conn.execute("SHOW TABLES").fetchdf())
         conn.checkpoint()  # flush all writes to disk before uploading
 
     _save_db_to_gcs(bucket)
