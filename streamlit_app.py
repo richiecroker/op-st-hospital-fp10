@@ -101,7 +101,7 @@ top_items_data = conn.execute("""
     LIMIT 20
 """).fetchdf()
 
-top_items_data = conn.execute("""
+top_cost_data = conn.execute("""
     SELECT bnf_name, sum(actual_cost) as actual_cost
     FROM prescribing AS rx
     JOIN _selected_hospitals AS s
@@ -128,7 +128,7 @@ with col1:
         xaxis=dict(type="date"),
         yaxis=dict(title="Items", rangemode="tozero")
     )
-    st.plotly_chart(fig1, width=True)
+    st.plotly_chart(fig1, use_container_width=True)
 
 with col2:
     fig2 = go.Figure()
@@ -138,7 +138,7 @@ with col2:
         xaxis=dict(type="date"),
         yaxis=dict(title="Cost", rangemode="tozero")
     )
-    st.plotly_chart(fig2, width=True)
+    st.plotly_chart(fig2, use_container_width=True)
     
 st.dataframe(top_items_data)
 st.dataframe(top_cost_data)
