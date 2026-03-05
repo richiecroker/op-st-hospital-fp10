@@ -224,6 +224,7 @@ def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.
 
 # ── UI ────────────────────────────────────────────────────────────────────────
 
+st.image("OpenPrescribing.svg")
 
 st.markdown("""
 <div style="background-color:#e8f4f8; padding:10px; border-radius:5px; border-left:4px solid #1f77b4;">
@@ -231,7 +232,10 @@ Hello!  This is a <b>very</b> early prototype of analysing hospital FP10s that h
 <a href="bennett@phc.ox.ac.uk">bennett@phc.ox.ac.uk</a>.
 </div>
 """, unsafe_allow_html=True)
-st.image("OpenPrescribing.svg")
+
+st.info("""Select at any level — leave filters empty to see all data. You can type to search and select multiple values. 
+For questions email [you@example.com](mailto:you@example.com)""")
+
 st.title("Hospital FP10s dispensed in the community viewer")
 
 conn = get_duckdb_connection()
