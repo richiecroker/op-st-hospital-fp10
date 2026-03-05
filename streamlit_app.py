@@ -139,14 +139,13 @@ with col2:
         yaxis=dict(title="Cost", rangemode="tozero")
     )
     st.plotly_chart(fig2, use_container_width=True)
-    
-st.dataframe(top_items_data)
-st.dataframe(top_cost_data)
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.dataframe(top_items_data)
+    st.subheader("Top 20 items over last 3 months")
+    st.dataframe(top_items_data, hide_index=True)
 
 with col2:
-    st.dataframe(top_cost_data)
+    st.subheader("Top 20 cost items over last 3 months")
+    st.dataframe(top_cost_data, hide_index=True)
