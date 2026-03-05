@@ -142,3 +142,11 @@ with col2:
     
 st.dataframe(top_items_data)
 st.dataframe(top_cost_data)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write(df1)
+
+with col2:
+    st.write(df2)
