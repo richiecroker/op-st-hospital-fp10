@@ -38,6 +38,7 @@ def get_duckdb_connection():
 
     return duckdb.connect(local_db)
 
+st.image("OpenPrescribing.svg")
 
 st.title("🎈 My new app")
 
