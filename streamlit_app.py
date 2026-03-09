@@ -34,7 +34,6 @@ def _credentials():
 
 
 def _gcs_client():
-   
     return storage.Client(credentials=_credentials())
 
 
@@ -364,7 +363,7 @@ with col1:
         .drop(columns=["actual_cost"])
         .rename(columns={
             "items": "Items (Actual Cost)",
-            "bnf_name": "BNF Name",  # replace with your real column name
+            "bnf_name": "BNF Name",
         }),
         hide_index=True,
         height=740,
@@ -382,7 +381,7 @@ with col2:
         .drop(columns=["items"])
         .rename(columns={
             "actual_cost": "Actual Cost (Items)",
-            "bnf_name": "BNF Name",  # replace with your real column name
+            "bnf_name": "BNF Name",
         }),
         hide_index=True,
         height=740,
@@ -405,10 +404,9 @@ start_date, end_date = st.slider(
     format="MMM YYYY"
 )
 
-months = st.slider("Months lookback", min_value=1, max_value=12, value=3)
 top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
 
-top_data = query_top(conn, ods_codes, months=months, top_n=top_n)
+top_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date, top_n=top_n)
 st.dataframe(top_data)
 
 with open("changelog.yaml") as f:
