@@ -220,6 +220,7 @@ conn = get_duckdb_connection()
 df = conn.execute(
     """
     SELECT * FROM ods_mapping
+    WHERE operational_closed_date IS NULL
     """
 ).fetchdf()
 
