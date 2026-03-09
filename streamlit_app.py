@@ -374,9 +374,12 @@ search = st.text_input("Search BNF name", "")
 
 top_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date)
 
-if search:
-    top_data = top_data[top_data["bnf_name"].str.contains(search, case=False, na=False)]
+bnf_opts = sorted(top_data["bnf_name"].dropna().unique().tolist())
+sel_bnf = st.multiselect("Filter by BNF name", bnf_opts)
 
+if sel_bnf:
+    top_data = top_data[top_data["bnf_name"].isin(sel_bnf)]
+    
 col1, col2 = st.columns(2)
 
 with col1:
