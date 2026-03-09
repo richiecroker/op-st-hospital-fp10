@@ -369,7 +369,7 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader(f"Top {top_n} items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
     st.dataframe(
-        top_data.nlargest(top_n, "items").assign(
+        query_top.nlargest(top_n, "items").assign(
             items=lambda df: df.apply(
                 lambda row: "{:,.0f} (£{:,.2f})".format(row["items"], row["actual_cost"]),
                 axis=1
@@ -387,7 +387,7 @@ with col1:
 with col2:
     st.subheader(f"Top {top_n} cost items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
     st.dataframe(
-        top_data.nlargest(top_n, "actual_cost").assign(
+        query_top.nlargest(top_n, "actual_cost").assign(
             actual_cost=lambda df: df.apply(
                 lambda row: "£{:,.2f} ({:,.0f})".format(row["actual_cost"], row["items"]),
                 axis=1
@@ -421,8 +421,8 @@ start_date, end_date = st.slider(
 
 top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
 
-top_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date, top_n=top_n)
-st.dataframe(top_data)
+query_top = query_top(conn, ods_codes, start_date=start_date, end_date=end_date, top_n=top_n)
+st.dataframe(query_top)
 
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
