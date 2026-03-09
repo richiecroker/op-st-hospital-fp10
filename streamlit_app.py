@@ -274,10 +274,10 @@ def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[
     all_codes = set(selected_codes)
     for code in selected_codes:
         mask = df_full["ultimate_successors"].apply(lambda x: code in x)
-        predecessors = df_full[
+        closed = df_full[
             df_full["legal_closed_date"].notna() & mask
         ]["ods_code"].tolist()
-        all_codes.update(predecessors)
+        all_codes.update(closed)
     return list(all_codes)
 
 # Resolve which ODS codes to query - use the most specific selection made
@@ -291,6 +291,7 @@ elif sel_regions:
 else:
     ods_codes = resolve_ods_codes(df_open["ods_code"].unique().tolist(), df)
 
+predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
 if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
     parts = [
         f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
@@ -298,7 +299,7 @@ if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
     ]
     noun = "organisation" if len(predecessors) == 1 else "organisations"
     st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
-
+    
 # ── Data queries ──────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
