@@ -168,10 +168,7 @@ def query_month_data(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> p
         """
         SELECT month, sum(items) AS items, sum(actual_cost) AS actual_cost
         FROM prescribing AS rx
-        WHERE EXISTS (
-            SELECT 1 FROM (SELECT unnest($1) AS code)
-            WHERE LEFT(rx.hospital, LENGTH(code)) = code
-        )
+        WHERE rx.hospital = ANY($1)
         GROUP BY month
         ORDER BY month
         """,
@@ -184,11 +181,8 @@ def query_top_items(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd
         """
         SELECT bnf_name, sum(items) AS items
         FROM prescribing AS rx
-        WHERE EXISTS (
-            SELECT 1 FROM (SELECT unnest($1) AS code)
-            WHERE LEFT(rx.hospital, LENGTH(code)) = code
-        )
-          AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
+        WHERE rx.hospital = ANY($1)
+        AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
         GROUP BY bnf_name
         ORDER BY items DESC
         LIMIT 20
@@ -202,11 +196,8 @@ def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.
         """
         SELECT bnf_name, sum(actual_cost) AS actual_cost
         FROM prescribing AS rx
-        WHERE EXISTS (
-            SELECT 1 FROM (SELECT unnest($1) AS code)
-            WHERE LEFT(rx.hospital, LENGTH(code)) = code
-        )
-          AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
+        WHERE rx.hospital = ANY($1)
+        AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
         GROUP BY bnf_name
         ORDER BY actual_cost DESC
         LIMIT 20
@@ -228,9 +219,7 @@ conn = get_duckdb_connection()
 
 df = conn.execute(
     """
-    SELECT ods_name, ods_code, region, icb
-    FROM ods_mapping
-    GROUP BY ods_name, ods_code, region, icb
+    SELECT * FROM ods_mapping
     """
 ).fetchdf()
 
