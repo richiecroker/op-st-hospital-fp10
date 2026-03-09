@@ -336,7 +336,21 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Top 20 items over last 3 months")
-    st.dataframe(top_items_data, hide_index=True, height=740)
+    st.dataframe(
+        top_items_data.assign(
+            items=top_cost_data.apply(
+                lambda row: "{:,.0f} (£{:,.2f})".format(row["items"], row["actual_cost"]),
+                axis=1
+            )
+        )
+        .drop(columns=["actual_cost"])
+        .rename(columns={
+            "items": "Items (Actual Cost)",
+            "bnf_name": "BNF Name",  # replace with your real column name
+        }),
+        hide_index=True,
+        height=740,
+    )
 
 with col2:
     st.subheader("Top 20 cost items over last 3 months")
