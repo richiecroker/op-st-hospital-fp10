@@ -269,13 +269,18 @@ pr_opts = list(pr_map.keys())
 sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
 sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
 
-# Expand selected codes to include closed predecessors
+earliest_month = pd.to_datetime(
+    conn.execute("SELECT MIN(CAST(month AS DATE)) FROM prescribing").fetchone()[0]
+)
+
 def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[str]:
     all_codes = set(selected_codes)
     for code in selected_codes:
         mask = df_full["ultimate_successors"].apply(lambda x: code in x)
         closed = df_full[
-            df_full["legal_closed_date"].notna() & mask
+            df_full["legal_closed_date"].notna() &
+            (pd.to_datetime(df_full["legal_closed_date"]) >= earliest_month) &
+            mask
         ]["ods_code"].tolist()
         all_codes.update(closed)
     return list(all_codes)
@@ -299,7 +304,7 @@ if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
     ]
     noun = "organisation" if len(predecessors) == 1 else "organisations"
     st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
-    
+
 # ── Data queries ──────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
