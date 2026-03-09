@@ -9,3 +9,7 @@
 - date: 2026-03-09
   change: Changed filters to current organisation, and highlights where predecessor organisations are also included.
   person: Richard Croker
+
+- date: 2026-03-09
+  change: Added sliders for dates and numbers, add search box for drugs
+  person: Richard Croker
