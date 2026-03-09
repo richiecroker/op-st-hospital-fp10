@@ -217,15 +217,9 @@ st.title("Hospital FP10s dispensed in the community viewer")
 
 conn = get_duckdb_connection()
 
-df = conn.execute(
-    """
-    SELECT * FROM ods_mapping
-    """
-).fetchdf()
-st.code(str(df[df["ultimate_successors"].notna()]["ultimate_successors"].head(10).tolist()))
-st.write(df[["ods_code", "ultimate_successors"]].head(20))
-st.write(df["ultimate_successors"].dtype)
-st.info("Please select required organisation - you can do this at any level.  Hint: you can select multiple organisations by holding down ctrl, and you can also search by typing the name.")
+df = conn.execute("SELECT * FROM ods_mapping").fetchdf()
+df["ultimate_successors"] = df["ultimate_successors"].apply(
+    lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
 
 # Initialise session state (empty list = no filter = show all)
 if "sel_region" not in st.session_state:
@@ -265,10 +259,7 @@ sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr
 def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[str]:
     all_codes = set(selected_codes)
     for code in selected_codes:
-        mask = df_full["ultimate_successors"].apply(
-            lambda x: False if (x is None or (isinstance(x, float) and pd.isna(x)))
-            else (code in x if isinstance(x, (list, set)) else x == code)
-        )
+        mask = df_full["ultimate_successors"].apply(lambda x: code in x)
         predecessors = df_full[
             df_full["legal_closed_date"].notna() & mask
         ]["ods_code"].tolist()
