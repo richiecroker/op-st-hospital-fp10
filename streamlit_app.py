@@ -293,9 +293,13 @@ else:
 
 predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
 if not predecessors.empty:
-    names = ", ".join(predecessors["ods_name"].tolist())
-    st.info(f"ℹ️ Also includes predecessor organisation(s): {names}")
-    
+    parts = [
+        f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
+        for row in predecessors.itertuples(index=False)
+    ]
+    noun = "organisation" if len(predecessors) == 1 else "organisations"
+    st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
+
 # ── Data queries ──────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
