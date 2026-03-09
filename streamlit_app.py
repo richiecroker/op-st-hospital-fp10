@@ -291,6 +291,10 @@ elif sel_regions:
 else:
     ods_codes = resolve_ods_codes(df_open["ods_code"].unique().tolist(), df)
 
+with st.expander("🔍 Debug: ODS codes being queried"):
+    st.write(f"Total codes: {len(ods_codes)}")
+    st.write(ods_codes)
+
 # ── Data queries ──────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
