@@ -291,8 +291,7 @@ elif sel_regions:
 else:
     ods_codes = resolve_ods_codes(df_open["ods_code"].unique().tolist(), df)
 
-predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
-if not predecessors.empty:
+if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
     parts = [
         f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
         for row in predecessors.itertuples(index=False)
