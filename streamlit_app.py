@@ -163,6 +163,22 @@ def get_duckdb_connection():
     _save_db_to_gcs(bucket)
     return conn
 
+@st.cache_data
+def query_date_range(_conn):
+    return _conn.execute("""
+        SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
+    """).fetchone()
+
+min_date, max_date = query_date_range(conn)
+default_start = max_date - pd.DateOffset(months=3)
+
+start_date, end_date = st.slider(
+    "Date range",
+    min_value=min_date,
+    max_value=max_date,
+    value=(default_start.date(), max_date),
+    format="MMM YYYY"
+)
 
 # ── Query helpers ─────────────────────────────────────────────────────────────
 
@@ -217,7 +233,7 @@ def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.
         [ods_codes],
     ).fetchdf()
 
-def query_top(conn: duckdb.DuckDBPyConnection, ods_codes: list[str], months: int = 3, top_n: int = 20) -> pd.DataFrame:
+def query_top(conn, ods_codes, start_date, end_date, top_n=20):
     return conn.execute(
         """
         WITH filtered AS (
@@ -227,14 +243,14 @@ def query_top(conn: duckdb.DuckDBPyConnection, ods_codes: list[str], months: int
                 SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
                 WHERE LEFT(rx.hospital, LENGTH(code)) = code
             )
-            AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL (($2::INT) || ' months')
+            AND CAST(month AS DATE) BETWEEN $2 AND $3
             GROUP BY bnf_name
         )
         SELECT * FROM filtered
         ORDER BY actual_cost DESC
-        LIMIT $3
+        LIMIT $4
         """,
-        [ods_codes, months, top_n],
+        [ods_codes, start_date, end_date, top_n],
     ).fetchdf()
 
 # ── UI ────────────────────────────────────────────────────────────────────────
