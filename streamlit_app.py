@@ -264,9 +264,10 @@ def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[
     all_codes = set(selected_codes)
     for code in selected_codes:
         predecessors = df_full[
-            df_full["ultimate_successors"].notna() &
-            (df_full["ultimate_successors"] == code) &
-            df_full["legal_close_date"].notna()
+            df_full["legal_close_date"].notna() &
+            df_full["ultimate_successors"].apply(
+                lambda x: code in x if isinstance(x, (list, set)) else x == code
+            )
         ]["ods_code"].tolist()
         all_codes.update(predecessors)
     return list(all_codes)
