@@ -7,6 +7,7 @@ import duckdb
 import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
+import numpy as np
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 
