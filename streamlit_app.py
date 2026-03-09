@@ -223,6 +223,9 @@ df["ultimate_successors"] = df["ultimate_successors"].apply(
     lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
 )
 
+# Use only open trusts for building filter options
+df_open = df[df["legal_closed_date"].isna()].copy()
+
 # Initialise session state (empty list = no filter = show all)
 if "sel_region" not in st.session_state:
     st.session_state.sel_region = []
@@ -232,10 +235,10 @@ if "sel_pr" not in st.session_state:
     st.session_state.sel_pr = []
 
 # Region filter
-region_opts = sorted(df["region"].dropna().unique().tolist())
+region_opts = sorted(df_open["region"].dropna().unique().tolist())
 sel_regions = [v for v in st.session_state.get("sel_region", []) if v in region_opts]
 sel_regions = st.multiselect("Region", region_opts, default=sel_regions, key="sel_region")
-df_region = df if not sel_regions else df[df["region"].isin(sel_regions)]
+df_region = df_open if not sel_regions else df_open[df_open["region"].isin(sel_regions)]
 
 # ICB filter
 icb_opts = sorted(df_region["icb"].dropna().unique().tolist())
@@ -245,7 +248,7 @@ df_icb = df_region if not sel_icbs else df_region[df_region["icb"].isin(sel_icbs
 
 # Hospital filter - only show open trusts
 pr_pairs = (
-    df_icb[df_icb["legal_closed_date"].isna()][["ods_code", "ods_name"]]
+    df_icb[["ods_code", "ods_name"]]
     .drop_duplicates()
     .sort_values("ods_name")
 )
@@ -257,7 +260,7 @@ pr_opts = list(pr_map.keys())
 sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
 sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
 
-# Build a lookup: successor ODS code -> all predecessor ODS codes (where ultimate_successor = that code)
+# Expand selected codes to include closed predecessors
 def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[str]:
     all_codes = set(selected_codes)
     for code in selected_codes:
@@ -271,13 +274,13 @@ def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[
 # Resolve which ODS codes to query - use the most specific selection made
 if sel_prs:
     direct_codes = [pr_map[p] for p in sel_prs]
-    ods_codes = resolve_ods_codes(direct_codes, df)  # use full df, not df_icb
+    ods_codes = resolve_ods_codes(direct_codes, df)
 elif sel_icbs:
     ods_codes = resolve_ods_codes(df_icb["ods_code"].unique().tolist(), df)
 elif sel_regions:
     ods_codes = resolve_ods_codes(df_region["ods_code"].unique().tolist(), df)
 else:
-    ods_codes = df["ods_code"].unique().tolist()
+    ods_codes = resolve_ods_codes(df_open["ods_code"].unique().tolist(), df)
 
 # ── Data queries ──────────────────────────────────────────────────────────────
 
