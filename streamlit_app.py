@@ -343,14 +343,14 @@ with col2:
     st.dataframe(
         top_cost_data.assign(
             actual_cost=top_cost_data.apply(
-            lambda row: "£{:,.2f} ({:,.0f})".format(row["actual_cost"], row["items"])
+                lambda row: "£{:,.2f} ({:,.0f})".format(row["actual_cost"], row["items"]),
+                axis=1
             )
         )
         .drop(columns=["items"])
         .rename(columns={
-            "actual_cost": "BNF Name",
-            "some_other_col": "Actual Cost (Items)",
-            # add as many as you need
+            "actual_cost": "Actual Cost (Items)",
+            "bnf_name": "BNF Name",  # replace with your real column name
         }),
         hide_index=True,
         height=740,
