@@ -163,23 +163,6 @@ def get_duckdb_connection():
     _save_db_to_gcs(bucket)
     return conn
 
-@st.cache_data
-def query_date_range(_conn):
-    return _conn.execute("""
-        SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
-    """).fetchone()
-
-min_date, max_date = query_date_range(conn)
-default_start = max_date - pd.DateOffset(months=3)
-
-start_date, end_date = st.slider(
-    "Date range",
-    min_value=min_date,
-    max_value=max_date,
-    value=(default_start.date(), max_date),
-    format="MMM YYYY"
-)
-
 # ── Query helpers ─────────────────────────────────────────────────────────────
 
 def query_month_data(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.DataFrame:
@@ -404,6 +387,23 @@ with col2:
         hide_index=True,
         height=740,
     )
+
+@st.cache_data
+def query_date_range(_conn):
+    return _conn.execute("""
+        SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
+    """).fetchone()
+
+min_date, max_date = query_date_range(conn)
+default_start = max_date - pd.DateOffset(months=3)
+
+start_date, end_date = st.slider(
+    "Date range",
+    min_value=min_date,
+    max_value=max_date,
+    value=(default_start.date(), max_date),
+    format="MMM YYYY"
+)
 
 months = st.slider("Months lookback", min_value=1, max_value=12, value=3)
 top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
