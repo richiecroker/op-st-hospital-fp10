@@ -223,6 +223,8 @@ df = conn.execute(
     """
 ).fetchdf()
 
+st.write(df[["ods_code", "ultimate_successors"]].head(20))
+st.write(df["ultimate_successors"].dtype)
 st.info("Please select required organisation - you can do this at any level.  Hint: you can select multiple organisations by holding down ctrl, and you can also search by typing the name.")
 
 # Initialise session state (empty list = no filter = show all)
