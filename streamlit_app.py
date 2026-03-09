@@ -185,7 +185,7 @@ def query_month_data(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> p
 def query_top_items(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.DataFrame:
     return conn.execute(
         """
-        SELECT bnf_name, sum(items) AS items
+        SELECT bnf_name, sum(items) AS items, sum(actual_cost) AS actual_cost
         FROM prescribing AS rx
         WHERE EXISTS (
             SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
@@ -203,7 +203,7 @@ def query_top_items(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd
 def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.DataFrame:
     return conn.execute(
         """
-        SELECT bnf_name, sum(actual_cost) AS actual_cost
+        SELECT bnf_name, sum(actual_cost) AS actual_cost, sum(items) AS items, 
         FROM prescribing AS rx
         WHERE EXISTS (
             SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
@@ -341,7 +341,11 @@ with col1:
 with col2:
     st.subheader("Top 20 cost items over last 3 months")
     st.dataframe(
-        top_cost_data.assign(actual_cost=top_cost_data["actual_cost"].map("£{:,.2f}".format)),
+        top_cost_data.assign(
+            actual_cost=top_cost_data.apply(
+                lambda row: "£{:,.2f} ({})".format(row["actual_cost"], row["items"]), axis=1
+            )
+        ),
         hide_index=True,
         height=740,
     )
