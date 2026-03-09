@@ -293,12 +293,9 @@ else:
 
 predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
 if not predecessors.empty:
-    with st.expander(f"ℹ️ Also includes {len(predecessors)} predecessor organisation(s)"):
-        st.dataframe(
-            predecessors[["ods_code", "ods_name", "legal_closed_date"]],
-            hide_index=True
-        )
-
+    names = ", ".join(predecessors["ods_name"].tolist())
+    st.info(f"ℹ️ Also includes predecessor organisation(s): {names}")
+    
 # ── Data queries ──────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
