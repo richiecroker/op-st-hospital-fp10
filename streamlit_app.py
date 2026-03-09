@@ -291,9 +291,13 @@ elif sel_regions:
 else:
     ods_codes = resolve_ods_codes(df_open["ods_code"].unique().tolist(), df)
 
-with st.expander("🔍 Debug: ODS codes being queried"):
-    st.write(f"Total codes: {len(ods_codes)}")
-    st.write(ods_codes)
+predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
+if not predecessors.empty:
+    with st.expander(f"ℹ️ Also includes {len(predecessors)} predecessor organisation(s)"):
+        st.dataframe(
+            predecessors[["ods_code", "ods_name", "legal_closed_date"]],
+            hide_index=True
+        )
 
 # ── Data queries ──────────────────────────────────────────────────────────────
 
