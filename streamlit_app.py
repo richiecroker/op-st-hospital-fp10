@@ -222,7 +222,7 @@ df = conn.execute(
     SELECT * FROM ods_mapping
     """
 ).fetchdf()
-
+st.code(str(df[df["ultimate_successors"].notna()]["ultimate_successors"].head(10).tolist()))
 st.write(df[["ods_code", "ultimate_successors"]].head(20))
 st.write(df["ultimate_successors"].dtype)
 st.info("Please select required organisation - you can do this at any level.  Hint: you can select multiple organisations by holding down ctrl, and you can also search by typing the name.")
