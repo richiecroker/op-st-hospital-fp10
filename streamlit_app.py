@@ -169,7 +169,10 @@ def query_month_data(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> p
         """
         SELECT month, sum(items) AS items, sum(actual_cost) AS actual_cost
         FROM prescribing AS rx
-        WHERE rx.hospital = ANY($1)
+        WHERE EXISTS (
+            SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
+            WHERE LEFT(rx.hospital, LENGTH(code)) = code
+)
         GROUP BY month
         ORDER BY month
         """,
@@ -182,7 +185,10 @@ def query_top_items(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd
         """
         SELECT bnf_name, sum(items) AS items
         FROM prescribing AS rx
-        WHERE rx.hospital = ANY($1)
+        WHERE EXISTS (
+            SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
+            WHERE LEFT(rx.hospital, LENGTH(code)) = code
+)
         AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
         GROUP BY bnf_name
         ORDER BY items DESC
@@ -197,7 +203,9 @@ def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.
         """
         SELECT bnf_name, sum(actual_cost) AS actual_cost
         FROM prescribing AS rx
-        WHERE rx.hospital = ANY($1)
+        WHERE EXISTS (
+            SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
+            WHERE LEFT(rx.hospital, LENGTH(code)) = code
         AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
         GROUP BY bnf_name
         ORDER BY actual_cost DESC
