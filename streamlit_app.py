@@ -263,11 +263,12 @@ sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr
 def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[str]:
     all_codes = set(selected_codes)
     for code in selected_codes:
+        mask = df_full["ultimate_successors"].apply(
+            lambda x: False if (x is None or (isinstance(x, float) and pd.isna(x)))
+            else (code in x if isinstance(x, (list, set)) else x == code)
+        )
         predecessors = df_full[
-            df_full["legal_closed_date"].notna() &
-            df_full["ultimate_successors"].apply(
-                lambda x: code in x if isinstance(x, (list, set)) else x == code
-            )
+            df_full["legal_closed_date"].notna() & mask
         ]["ods_code"].tolist()
         all_codes.update(predecessors)
     return list(all_codes)
