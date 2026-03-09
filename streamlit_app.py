@@ -220,6 +220,7 @@ conn = get_duckdb_connection()
 df = conn.execute("SELECT * FROM ods_mapping").fetchdf()
 df["ultimate_successors"] = df["ultimate_successors"].apply(
     lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
+)
 
 # Initialise session state (empty list = no filter = show all)
 if "sel_region" not in st.session_state:
