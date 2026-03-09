@@ -217,6 +217,25 @@ def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.
         [ods_codes],
     ).fetchdf()
 
+def query_top(conn: duckdb.DuckDBPyConnection, ods_codes: list[str], months: int = 3, top_n: int = 20) -> pd.DataFrame:
+    return conn.execute(
+        """
+        WITH filtered AS (
+            SELECT bnf_name, sum(actual_cost) AS actual_cost, sum(items) AS items
+            FROM prescribing AS rx
+            WHERE EXISTS (
+                SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
+                WHERE LEFT(rx.hospital, LENGTH(code)) = code
+            )
+            AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL (($2::INT) || ' months')
+            GROUP BY bnf_name
+        )
+        SELECT * FROM filtered
+        ORDER BY actual_cost DESC
+        LIMIT $3
+        """,
+        [ods_codes, months, top_n],
+    ).fetchdf()
 
 # ── UI ────────────────────────────────────────────────────────────────────────
 
@@ -369,6 +388,12 @@ with col2:
         hide_index=True,
         height=740,
     )
+
+months = st.slider("Months lookback", min_value=1, max_value=12, value=3)
+top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
+
+top_data = query_top(conn, ods_codes, months=months, top_n=top_n)
+
 
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
