@@ -1,0 +1,7 @@
+- date: 2026-03-05
+  change: Initial prototype deployed.  Uses data from hospital FP10s, linked to prescribing organisation
+  person: Richard Croker
+
+- date: 2026-03-09
+  change: Changed filters to current organisation, and highlights where predecessor organisations are also included.
+  person: Richard Croker

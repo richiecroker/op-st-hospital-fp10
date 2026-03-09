@@ -8,6 +8,8 @@ import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
 import numpy as np
+import yaml
+
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 
@@ -351,3 +353,10 @@ with col2:
         hide_index=True,
         height=740,
     )
+
+with open("changelog.yaml") as f:
+    changelog = yaml.safe_load(f)
+
+with st.expander("📋 Changelog"):
+    for entry in reversed(changelog):  # most recent first
+        st.markdown(f"**{entry['date']}** — {entry['change']} *({entry['person']})*")
