@@ -370,8 +370,6 @@ start_date, end_date = st.slider(
 
 top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
 
-search = st.text_input("Search BNF name", "")
-
 top_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date)
 
 bnf_opts = sorted(top_data["bnf_name"].dropna().unique().tolist())
@@ -379,7 +377,7 @@ sel_bnf = st.multiselect("Filter by BNF name", bnf_opts)
 
 if sel_bnf:
     top_data = top_data[top_data["bnf_name"].isin(sel_bnf)]
-    
+
 col1, col2 = st.columns(2)
 
 with col1:
