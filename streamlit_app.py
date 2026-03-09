@@ -393,7 +393,7 @@ months = st.slider("Months lookback", min_value=1, max_value=12, value=3)
 top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
 
 top_data = query_top(conn, ods_codes, months=months, top_n=top_n)
-
+st.dataframe(top_data)
 
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
