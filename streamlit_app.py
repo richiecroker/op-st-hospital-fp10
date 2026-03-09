@@ -247,7 +247,7 @@ df_icb = df_region if not sel_icbs else df_region[df_region["icb"].isin(sel_icbs
 
 # Hospital filter - only show open trusts
 pr_pairs = (
-    df_icb[df_icb["legal_close_date"].isna()][["ods_code", "ods_name"]]
+    df_icb[df_icb["legal_closed_date"].isna()][["ods_code", "ods_name"]]
     .drop_duplicates()
     .sort_values("ods_name")
 )
