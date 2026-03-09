@@ -290,8 +290,6 @@ elif sel_regions:
 else:
     ods_codes = resolve_ods_codes(df_open["ods_code"].unique().tolist(), df)
 
-st.write("ods_codes:", ods_codes[:20])
-st.write("sample prescribing hospitals:", conn.execute("SELECT DISTINCT hospital FROM prescribing LIMIT 20").fetchdf())
 # ── Data queries ──────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
