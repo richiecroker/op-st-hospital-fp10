@@ -215,7 +215,7 @@ def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.
         [ods_codes],
     ).fetchdf()
 
-def query_top(conn, ods_codes, start_date, end_date, top_n=20):
+def query_top(conn, ods_codes, start_date, end_date):
     return conn.execute(
         """
         WITH filtered AS (
@@ -229,8 +229,6 @@ def query_top(conn, ods_codes, start_date, end_date, top_n=20):
             GROUP BY bnf_name
         )
         SELECT * FROM filtered
-        ORDER BY actual_cost DESC
-        LIMIT $4
         """,
         [ods_codes, start_date, end_date, top_n],
     ).fetchdf()
@@ -348,14 +346,31 @@ with col2:
     st.plotly_chart(fig2, use_container_width=True)
 
 # ── Tables ────────────────────────────────────────────────────────────────────
+@st.cache_data
+def query_date_range(_conn):
+    return _conn.execute("""
+        SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
+    """).fetchone()
 
+min_date, max_date = query_date_range(conn)
+default_start = max_date - pd.DateOffset(months=3)
+
+start_date, end_date = st.slider(
+    "Date range",
+    min_value=min_date,
+    max_value=max_date,
+    value=(default_start.date(), max_date),
+    format="MMM YYYY"
+)
+
+top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Top 20 items over last 3 months")
+    st.subheader(f"Top {top_n} items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
     st.dataframe(
-        top_items_data.assign(
-            items=top_items_data.apply(
+        top_data.nlargest(top_n, "items").assign(
+            items=lambda df: df.apply(
                 lambda row: "{:,.0f} (£{:,.2f})".format(row["items"], row["actual_cost"]),
                 axis=1
             )
@@ -370,10 +385,10 @@ with col1:
     )
 
 with col2:
-    st.subheader("Top 20 cost items over last 3 months")
+    st.subheader(f"Top {top_n} cost items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
     st.dataframe(
-        top_cost_data.assign(
-            actual_cost=top_cost_data.apply(
+        top_data.nlargest(top_n, "actual_cost").assign(
+            actual_cost=lambda df: df.apply(
                 lambda row: "£{:,.2f} ({:,.0f})".format(row["actual_cost"], row["items"]),
                 axis=1
             )
