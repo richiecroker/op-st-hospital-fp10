@@ -338,7 +338,7 @@ with col1:
     st.subheader("Top 20 items over last 3 months")
     st.dataframe(
         top_items_data.assign(
-            items=top_cost_data.apply(
+            items=top_items_data.apply(
                 lambda row: "{:,.0f} (£{:,.2f})".format(row["items"], row["actual_cost"]),
                 axis=1
             )
