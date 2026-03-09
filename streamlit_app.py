@@ -18,21 +18,20 @@ st.set_page_config(layout="wide")
 
 BUCKET_NAME      = "ebmdatalab"
 CSV_PREFIX       = "RC_tests/HOSPITAL_DISP_COMMUNITY_"  # blobs end in _yyyymm.csv
-GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10.duckdb"
+GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10-dev.duckdb"
 LOCAL_DB         = "/tmp/app.duckdb"
 SQL_PRESCRIBING  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries", "build_prescribing.sql")
-BQ_ODS_TABLE     = "ebmdatalab.scmd.ods_mapped"
+BQ_ODS_TABLE     = "ebmdatalab.scmd_pipeline.ods"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _credentials():
-    return service_account.Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"]
-    )
+    return service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
 
 
 def _gcs_client():
+   
     return storage.Client(credentials=_credentials())
 
 
@@ -40,8 +39,7 @@ def _bq_client():
     return bigquery.Client(credentials=_credentials(), project="ebmdatalab")
 
 
-def _latest_csv_yyyymm(bucket) -> str | None:
-    """Return the latest yyyymm suffix found among CSVs in GCS, e.g. '202503'."""
+def _latest_csv_yyyymm(bucket) -> str | None: #Return the latest yyyymm suffix found among CSVs in GCS
     months = []
     for blob in bucket.list_blobs(prefix=CSV_PREFIX):
         m = re.search(r"_(\d{6})\.csv$", blob.name)
@@ -50,8 +48,7 @@ def _latest_csv_yyyymm(bucket) -> str | None:
     return max(months) if months else None
 
 
-def _cached_yyyymm(conn) -> str | None:
-    """Return the latest yyyymm stored in the local DuckDB prescribing table."""
+def _cached_yyyymm(conn) -> str | None: #Return the latest yyyymm stored in the local DuckDB prescribing table
     try:
         result = conn.execute(
             "SELECT strftime(MAX(CAST(month AS DATE)), '%Y%m') FROM prescribing"
@@ -61,16 +58,14 @@ def _cached_yyyymm(conn) -> str | None:
         return None
 
 
-def _normalise_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert BQ-specific types that DuckDB doesn't recognise (e.g. dbdate) to standard types."""
+def _normalise_df(df: pd.DataFrame) -> pd.DataFrame: #Convert BQ-specific types that DuckDB doesn't recognise (e.g. dbdate) to standard types.
     for col in df.columns:
         if hasattr(df[col].dtype, "name") and "date" in str(df[col].dtype).lower():
             df[col] = pd.to_datetime(df[col]).dt.date
     return df
 
 
-def _rebuild_prescribing(conn):
-    """Pull pre-aggregated prescribing data from BigQuery using build_prescribing.sql."""
+def _rebuild_prescribing(conn): #Pull pre-aggregated prescribing data from BigQuery using build_prescribing.sql.
     with open(SQL_PRESCRIBING) as f:
         sql = f.read()
     bq = _bq_client()
@@ -81,8 +76,7 @@ def _rebuild_prescribing(conn):
     conn.unregister("_tmp")
 
 
-def _rebuild_ods_mapping(conn):
-    """Pull ods_mapping from BigQuery into DuckDB."""
+def _rebuild_ods_mapping(conn): #Pull ods_mapping from BigQuery into DuckDB.
     bq = _bq_client()
     df = _normalise_df(bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe())
     conn.execute("DROP TABLE IF EXISTS ods_mapping")
@@ -91,8 +85,7 @@ def _rebuild_ods_mapping(conn):
     conn.unregister("_tmp")
 
 
-def _save_db_to_gcs(bucket):
-    """Upload the local DuckDB to GCS so the next cold start can skip a rebuild."""
+def _save_db_to_gcs(bucket): #Upload the local DuckDB to GCS so the next cold start can skip a rebuild.
     with st.spinner("Saving database to GCS for next time..."):
         tmp = LOCAL_DB + ".upload.tmp"
         shutil.copy2(LOCAL_DB, tmp)
