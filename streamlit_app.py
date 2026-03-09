@@ -220,7 +220,6 @@ conn = get_duckdb_connection()
 df = conn.execute(
     """
     SELECT * FROM ods_mapping
-    WHERE operational_closed_date IS NULL
     """
 ).fetchdf()
 
@@ -246,9 +245,9 @@ sel_icbs = [v for v in st.session_state.get("sel_icb", []) if v in icb_opts]
 sel_icbs = st.multiselect("ICB", icb_opts, default=sel_icbs, key="sel_icb")
 df_icb = df_region if not sel_icbs else df_region[df_region["icb"].isin(sel_icbs)]
 
-# Hospital filter
+# Hospital filter - only show open trusts
 pr_pairs = (
-    df_icb[["ods_code", "ods_name"]]
+    df_icb[df_icb["legal_close_date"].isna()][["ods_code", "ods_name"]]
     .drop_duplicates()
     .sort_values("ods_name")
 )
@@ -260,17 +259,27 @@ pr_opts = list(pr_map.keys())
 sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
 sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
 
+# Build a lookup: successor ODS code -> all predecessor ODS codes (where ultimate_successor = that code)
+def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[str]:
+    all_codes = set(selected_codes)
+    for code in selected_codes:
+        predecessors = df_full[
+            df_full["ultimate_successor"].notna() &
+            (df_full["ultimate_successor"] == code) &
+            df_full["legal_close_date"].notna()
+        ]["ods_code"].tolist()
+        all_codes.update(predecessors)
+    return list(all_codes)
+
 # Resolve which ODS codes to query - use the most specific selection made
 if sel_prs:
-    ods_codes = [pr_map[p] for p in sel_prs]
+    direct_codes = [pr_map[p] for p in sel_prs]
+    ods_codes = resolve_ods_codes(direct_codes, df)  # use full df, not df_icb
 elif sel_icbs:
-    ods_codes = df_icb["ods_code"].unique().tolist()
+    ods_codes = resolve_ods_codes(df_icb["ods_code"].unique().tolist(), df)
 elif sel_regions:
-    ods_codes = df_region["ods_code"].unique().tolist()
+    ods_codes = resolve_ods_codes(df_region["ods_code"].unique().tolist(), df)
 else:
-    ods_codes = df["ods_code"].unique().tolist()
-
-if not ods_codes:
     ods_codes = df["ods_code"].unique().tolist()
 
 # ── Data queries ──────────────────────────────────────────────────────────────
