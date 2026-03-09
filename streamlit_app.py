@@ -237,14 +237,6 @@ df["ultimate_successors"] = df["ultimate_successors"].apply(
 # Use only open trusts for building filter options
 df_open = df[df["legal_closed_date"].isna()].copy()
 
-# Initialise session state (empty list = no filter = show all)
-if "sel_region" not in st.session_state:
-    st.session_state.sel_region = []
-if "sel_icb" not in st.session_state:
-    st.session_state.sel_icb = []
-if "sel_pr" not in st.session_state:
-    st.session_state.sel_pr = []
-
 # Region filter
 region_opts = sorted(df_open["region"].dropna().unique().tolist())
 sel_regions = [v for v in st.session_state.get("sel_region", []) if v in region_opts]
@@ -357,6 +349,6 @@ with col2:
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
 
-with st.expander("📋 Changelog"):
+with st.expander("Changelog"):
     for entry in reversed(changelog):  # most recent first
         st.markdown(f"**{entry['date']}** — {entry['change']} *({entry['person']})*")
