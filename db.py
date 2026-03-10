@@ -56,7 +56,12 @@ def _rebuild_prescribing(conn):
     with open(os.path.join(SQL_DIR, "build_prescribing.sql")) as f:
         sql = f.read()
     bq = _bq_client()
-    df = _normalise_df(bq.query(sql).to_dataframe())
+    try:
+        query_job = bq.query(sql)
+        df = _normalise_df(query_job.result().to_dataframe())
+    except Exception as e:
+        logger.error("BigQuery error in build_prescribing.sql: %s", e)
+        raise
     conn.execute("DROP TABLE IF EXISTS prescribing")
     conn.register("_tmp", df)
     conn.execute("CREATE TABLE prescribing AS SELECT * FROM _tmp")
