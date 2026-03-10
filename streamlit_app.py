@@ -137,6 +137,16 @@ def get_duckdb_connection():
         _rebuild_ods_mapping(conn)
         conn.checkpoint()
         conn.close()
+        
+    logger.info("DB file exists after rebuild: %s, size: %s", 
+                os.path.exists(LOCAL_DB), 
+                os.path.getsize(LOCAL_DB) if os.path.exists(LOCAL_DB) else "N/A")
+    
+    if not os.path.exists(LOCAL_DB):
+        logger.error("DuckDB file not created at %s", LOCAL_DB)
+        # Skip GCS upload and just return an in-memory connection with the data
+        conn = duckdb.connect(LOCAL_DB)
+        return conn
 
     _save_db_to_gcs(bucket)
     return duckdb.connect(LOCAL_DB)
