@@ -72,6 +72,8 @@ with st.sidebar:
     sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
     sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
 
+    st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
+
     st.divider()
 
     min_date, max_date = conn.execute(load_sql("date_range.sql")).fetchone()
@@ -123,7 +125,7 @@ if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
         for row in predecessors.itertuples(index=False)
     ]
     noun = "organisation" if len(predecessors) == 1 else "organisations"
-    st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
+    
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 
