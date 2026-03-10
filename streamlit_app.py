@@ -221,7 +221,6 @@ for _, row in df[df["legal_closed_date"].notna()].iterrows():
 
 with st.sidebar:
     st.header("Filters")
-
     st.info("Select an organisation at any level.")
 
     region_opts = sorted(df_open["region"].dropna().unique().tolist())
@@ -364,7 +363,7 @@ if sel_bnf:
     detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
 
 sort_col = "actual_cost" if sort_by == "Cost" else "items"
-multi_trust = len(ods_codes) > 1
+single_trust = len(ods_codes) == 1
 
 top_ranked = (
     detail_data.groupby("bnf_name")[["items", "actual_cost"]]
@@ -375,8 +374,10 @@ top_ranked = (
 st.subheader(f"Top {top_n} by {sort_by.lower()} — {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
 for _, row in top_ranked.iterrows():
     label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
-    trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
-    if len(trust_breakdown) > 1:
+    if single_trust:
+        st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)")
+    else:
+        trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
         with st.expander(label):
             st.dataframe(
                 trust_breakdown[["hospital", "actual_cost", "items"]]
@@ -385,12 +386,6 @@ for _, row in top_ranked.iterrows():
                 .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
                 hide_index=True,
             )
-    else:
-        if multi_trust:
-            trust_name = trust_breakdown["hospital"].iloc[0] if not trust_breakdown.empty else "Unknown"
-            st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items) — {trust_name}")
-        else:
-            st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)")
 
 # ── Changelog ─────────────────────────────────────────────────────────────────
 
