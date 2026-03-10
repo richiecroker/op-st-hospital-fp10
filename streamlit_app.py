@@ -320,7 +320,7 @@ with st.spinner("Loading table data..."):
 detail_data["hospital"] = detail_data["hospital"].apply(
     lambda x: predecessor_to_successor.get(x, x)
 )
-
+st.write(detail_data["hospital"].unique()[:10])
 # Re-aggregate after remapping
 detail_data = (
     detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
