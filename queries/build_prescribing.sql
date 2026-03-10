@@ -7,6 +7,7 @@ SELECT
   sum(TOTAL_ITEMS) AS items,
   sum(TOTAL_ACTUAL_COST) AS actual_cost
 FROM ebmdatalab.hospitalcommunityprescribing.hospital_community_rx
+WHERE month >= '2019-01-01'
 GROUP BY
   month,
   bnf_name,

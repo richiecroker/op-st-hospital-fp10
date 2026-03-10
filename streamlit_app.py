@@ -224,6 +224,6 @@ st.subheader("Changelog")
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
 
-with st.expander("CClick to see changelog"):
+with st.expander("Click to see changelog"):
     for entry in reversed(changelog):
         st.markdown(f"**{entry['date']}** — {entry['change']} *({entry['person']})*")
