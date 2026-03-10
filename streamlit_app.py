@@ -139,7 +139,6 @@ def get_duckdb_connection():
         conn.close()
 
     _save_db_to_gcs(bucket)
-
     return duckdb.connect(LOCAL_DB)
 
 
@@ -196,15 +195,14 @@ st.title("Hospital FP10s dispensed in the community viewer")
 conn = get_duckdb_connection()
 
 df = conn.execute("SELECT * FROM ods_mapping").fetchdf()
-st.write(df.columns.tolist())
 df["ultimate_successors"] = df["ultimate_successors"].apply(
     lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
 )
 
 df_open = df[df["legal_closed_date"].isna()].copy()
 
-# Build lookup dicts
-code_to_name = df.set_index("ods_code")["ods_name"].to_dict()
+# Build lookup dicts - only map open trusts to names
+code_to_name = df[df["legal_closed_date"].isna()].set_index("ods_code")["ods_name"].to_dict()
 predecessor_to_successor = {}
 for _, row in df[df["legal_closed_date"].notna()].iterrows():
     for successor in row["ultimate_successors"]:
@@ -321,7 +319,7 @@ with st.spinner("Loading table data..."):
 detail_data["hospital"] = detail_data["hospital"].apply(
     lambda x: predecessor_to_successor.get(x, x)
 )
-st.write(detail_data["hospital"].unique()[:10])
+
 # Re-aggregate after remapping
 detail_data = (
     detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
