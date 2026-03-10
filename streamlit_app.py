@@ -196,6 +196,7 @@ st.title("Hospital FP10s dispensed in the community viewer")
 conn = get_duckdb_connection()
 
 df = conn.execute("SELECT * FROM ods_mapping").fetchdf()
+st.write(df.columns.tolist())
 df["ultimate_successors"] = df["ultimate_successors"].apply(
     lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
 )
@@ -243,7 +244,7 @@ earliest_month = pd.to_datetime(
 def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[str]:
     all_codes = set(selected_codes)
     for code in selected_codes:
-        mask = df_full["ultimate_successors"].apply(lambda x: code in x)
+        mask = df_full["ucode_to_name = df.set_index("ods_code")"].apply(lambda x: code in x)
         closed = df_full[
             df_full["legal_closed_date"].notna() &
             (pd.to_datetime(df_full["legal_closed_date"]) >= earliest_month) &
