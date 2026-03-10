@@ -137,14 +137,13 @@ def get_duckdb_connection():
         _rebuild_ods_mapping(conn)
         conn.checkpoint()
         conn.close()
-        
-    logger.info("DB file exists after rebuild: %s, size: %s", 
-                os.path.exists(LOCAL_DB), 
+
+    logger.info("DB file exists after rebuild: %s, size: %s",
+                os.path.exists(LOCAL_DB),
                 os.path.getsize(LOCAL_DB) if os.path.exists(LOCAL_DB) else "N/A")
-    
+
     if not os.path.exists(LOCAL_DB):
         logger.error("DuckDB file not created at %s", LOCAL_DB)
-        # Skip GCS upload and just return an in-memory connection with the data
         conn = duckdb.connect(LOCAL_DB)
         return conn
 
@@ -218,32 +217,54 @@ for _, row in df[df["legal_closed_date"].notna()].iterrows():
     for successor in row["ultimate_successors"]:
         predecessor_to_successor[row["ods_code"]] = successor
 
-# ── Filters ───────────────────────────────────────────────────────────────────
+# ── Sidebar ───────────────────────────────────────────────────────────────────
 
-st.info("Please select required organisation - you can do this at any level.")
+with st.sidebar:
+    st.header("Filters")
 
-region_opts = sorted(df_open["region"].dropna().unique().tolist())
-sel_regions = [v for v in st.session_state.get("sel_region", []) if v in region_opts]
-sel_regions = st.multiselect("Region", region_opts, default=sel_regions, key="sel_region")
-df_region = df_open if not sel_regions else df_open[df_open["region"].isin(sel_regions)]
+    st.info("Select an organisation at any level.")
 
-icb_opts = sorted(df_region["icb"].dropna().unique().tolist())
-sel_icbs = [v for v in st.session_state.get("sel_icb", []) if v in icb_opts]
-sel_icbs = st.multiselect("ICB", icb_opts, default=sel_icbs, key="sel_icb")
-df_icb = df_region if not sel_icbs else df_region[df_region["icb"].isin(sel_icbs)]
+    region_opts = sorted(df_open["region"].dropna().unique().tolist())
+    sel_regions = [v for v in st.session_state.get("sel_region", []) if v in region_opts]
+    sel_regions = st.multiselect("Region", region_opts, default=sel_regions, key="sel_region")
+    df_region = df_open if not sel_regions else df_open[df_open["region"].isin(sel_regions)]
 
-pr_pairs = (
-    df_icb[["ods_code", "ods_name"]]
-    .drop_duplicates()
-    .sort_values("ods_name")
-)
-pr_map: dict[str, str] = {
-    f"{row.ods_name} ({row.ods_code})": row.ods_code
-    for row in pr_pairs.itertuples(index=False)
-}
-pr_opts = list(pr_map.keys())
-sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
-sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
+    icb_opts = sorted(df_region["icb"].dropna().unique().tolist())
+    sel_icbs = [v for v in st.session_state.get("sel_icb", []) if v in icb_opts]
+    sel_icbs = st.multiselect("ICB", icb_opts, default=sel_icbs, key="sel_icb")
+    df_icb = df_region if not sel_icbs else df_region[df_region["icb"].isin(sel_icbs)]
+
+    pr_pairs = (
+        df_icb[["ods_code", "ods_name"]]
+        .drop_duplicates()
+        .sort_values("ods_name")
+    )
+    pr_map: dict[str, str] = {
+        f"{row.ods_name} ({row.ods_code})": row.ods_code
+        for row in pr_pairs.itertuples(index=False)
+    }
+    pr_opts = list(pr_map.keys())
+    sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
+    sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
+
+    st.divider()
+
+    min_date, max_date = query_date_range(conn)
+    default_start = max_date - pd.DateOffset(months=3)
+
+    start_date, end_date = st.slider(
+        "Date range",
+        min_value=min_date,
+        max_value=max_date,
+        value=(default_start.date(), max_date),
+        format="MMM YYYY"
+    )
+
+    top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
+
+    sort_by = st.radio("Sort by", ["Cost", "Items"], horizontal=True)
+
+# ── ODS code resolution ───────────────────────────────────────────────────────
 
 earliest_month = pd.to_datetime(
     conn.execute("SELECT MIN(CAST(month AS DATE)) FROM prescribing").fetchone()[0]
@@ -307,20 +328,7 @@ with col2:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-# ── Tables ────────────────────────────────────────────────────────────────────
-
-min_date, max_date = query_date_range(conn)
-default_start = max_date - pd.DateOffset(months=3)
-
-start_date, end_date = st.slider(
-    "Date range",
-    min_value=min_date,
-    max_value=max_date,
-    value=(default_start.date(), max_date),
-    format="MMM YYYY"
-)
-
-top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
+# ── Table ─────────────────────────────────────────────────────────────────────
 
 with st.spinner("Loading table data..."):
     detail_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date)
@@ -337,12 +345,10 @@ detail_data = (
     .reset_index()
 )
 
-# Remap hospital codes to names
+# Remap hospital codes to names using prefix match
 def lookup_name(code: str) -> str:
-    # exact match first
     if code in code_to_name:
         return code_to_name[code]
-    # prefix match - find the ODS code that is a prefix of this hospital code
     for ods_code, name in code_to_name.items():
         if code.startswith(ods_code):
             return name
@@ -350,56 +356,39 @@ def lookup_name(code: str) -> str:
 
 detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
 
-bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
-sel_bnf = st.multiselect("Filter by BNF name", bnf_opts, default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts], key="sel_bnf")
+with st.sidebar:
+    bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
+    sel_bnf = st.multiselect("Filter by BNF name", bnf_opts, default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts], key="sel_bnf")
 
 if sel_bnf:
     detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
 
-top_by_items = (
+sort_col = "actual_cost" if sort_by == "Cost" else "items"
+multi_trust = len(ods_codes) > 1
+
+top_ranked = (
     detail_data.groupby("bnf_name")[["items", "actual_cost"]]
     .sum().reset_index()
-    .nlargest(top_n, "items")
-)
-top_by_cost = (
-    detail_data.groupby("bnf_name")[["items", "actual_cost"]]
-    .sum().reset_index()
-    .nlargest(top_n, "actual_cost")
+    .nlargest(top_n, sort_col)
 )
 
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader(f"Top {top_n} items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
-    for _, row in top_by_items.iterrows():
-        label = f"{row['bnf_name']} — {row['items']:,.0f} items (£{row['actual_cost']:,.2f})"
-        trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
-        if len(trust_breakdown) > 1:
-            with st.expander(label):
-                st.dataframe(
-                    trust_breakdown[["hospital", "items", "actual_cost"]]
-                    .sort_values("items", ascending=False)
-                    .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
-                    .rename(columns={"hospital": "Hospital", "items": "Items", "actual_cost": "Actual Cost"}),
-                    hide_index=True,
-                )
-        else:
-            st.markdown(f"**{row['bnf_name']}** — {row['items']:,.0f} items (£{row['actual_cost']:,.2f})")
-
-with col2:
-    st.subheader(f"Top {top_n} cost items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
-    for _, row in top_by_cost.iterrows():
-        label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
-        trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
-        if len(trust_breakdown) > 1:
-            with st.expander(label):
-                st.dataframe(
-                    trust_breakdown[["hospital", "actual_cost", "items"]]
-                    .sort_values("actual_cost", ascending=False)
-                    .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
-                    .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
-                    hide_index=True,
-                )
+st.subheader(f"Top {top_n} by {sort_by.lower()} — {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
+for _, row in top_ranked.iterrows():
+    label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
+    trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
+    if len(trust_breakdown) > 1:
+        with st.expander(label):
+            st.dataframe(
+                trust_breakdown[["hospital", "actual_cost", "items"]]
+                .sort_values(sort_col, ascending=False)
+                .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
+                .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
+                hide_index=True,
+            )
+    else:
+        if multi_trust:
+            trust_name = trust_breakdown["hospital"].iloc[0] if not trust_breakdown.empty else "Unknown"
+            st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items) — {trust_name}")
         else:
             st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)")
 
