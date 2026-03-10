@@ -136,9 +136,11 @@ def get_duckdb_connection():
         _rebuild_prescribing(conn)
         _rebuild_ods_mapping(conn)
         conn.checkpoint()
+        conn.close()
 
     _save_db_to_gcs(bucket)
-    return conn
+
+    return duckdb.connect(LOCAL_DB)
 
 
 # ── Query helpers ─────────────────────────────────────────────────────────────
