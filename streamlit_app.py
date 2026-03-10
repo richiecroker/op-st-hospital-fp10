@@ -1,196 +1,23 @@
-import shutil
 import logging
 import os
-import re
 
-import duckdb
-import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
 import numpy as np
 import yaml
+import plotly.graph_objects as go
 
-from google.cloud import bigquery, storage
-from google.oauth2 import service_account
+from db import get_duckdb_connection
 
 logger = logging.getLogger(__name__)
 
+SQL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries")
+
+def load_sql(filename: str) -> str:
+    with open(os.path.join(SQL_DIR, filename)) as f:
+        return f.read()
+
 st.set_page_config(layout="wide")
-
-# ── Constants ─────────────────────────────────────────────────────────────────
-
-BUCKET_NAME      = "ebmdatalab"
-CSV_PREFIX       = "RC_tests/HOSPITAL_DISP_COMMUNITY_"
-GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10-dev.duckdb"
-LOCAL_DB         = "/tmp/app.duckdb"
-SQL_PRESCRIBING  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries", "build_prescribing.sql")
-BQ_ODS_TABLE     = "ebmdatalab.scmd_pipeline.ods"
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _credentials():
-    return service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
-
-def _gcs_client():
-    return storage.Client(credentials=_credentials())
-
-def _bq_client():
-    return bigquery.Client(credentials=_credentials(), project="ebmdatalab")
-
-def _latest_csv_yyyymm(bucket) -> str | None:
-    months = []
-    for blob in bucket.list_blobs(prefix=CSV_PREFIX):
-        m = re.search(r"_(\d{6})\.csv$", blob.name)
-        if m:
-            months.append(m.group(1))
-    return max(months) if months else None
-
-def _cached_yyyymm(conn) -> str | None:
-    try:
-        result = conn.execute(
-            "SELECT strftime(MAX(CAST(month AS DATE)), '%Y%m') FROM prescribing"
-        ).fetchone()
-        return result[0] if result else None
-    except Exception:
-        return None
-
-def _normalise_df(df: pd.DataFrame) -> pd.DataFrame:
-    for col in df.columns:
-        if hasattr(df[col].dtype, "name") and "date" in str(df[col].dtype).lower():
-            df[col] = pd.to_datetime(df[col]).dt.date
-    return df
-
-def _rebuild_prescribing(conn):
-    with open(SQL_PRESCRIBING) as f:
-        sql = f.read()
-    bq = _bq_client()
-    df = _normalise_df(bq.query(sql).to_dataframe())
-    conn.execute("DROP TABLE IF EXISTS prescribing")
-    conn.register("_tmp", df)
-    conn.execute("CREATE TABLE prescribing AS SELECT * FROM _tmp")
-    conn.unregister("_tmp")
-
-def _rebuild_ods_mapping(conn):
-    bq = _bq_client()
-    df = _normalise_df(bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe())
-    conn.execute("DROP TABLE IF EXISTS ods_mapping")
-    conn.register("_tmp", df)
-    conn.execute("CREATE TABLE ods_mapping AS SELECT * FROM _tmp")
-    conn.unregister("_tmp")
-
-def _save_db_to_gcs(bucket):
-    with st.spinner("Saving database to GCS for next time..."):
-        tmp = LOCAL_DB + ".upload.tmp"
-        shutil.copy2(LOCAL_DB, tmp)
-        try:
-            bucket.blob(GCS_DB_PATH).upload_from_filename(tmp)
-        finally:
-            os.remove(tmp)
-
-
-# ── DB bootstrap ──────────────────────────────────────────────────────────────
-
-@st.cache_resource
-def get_duckdb_connection():
-    storage_client = _gcs_client()
-    bucket = storage_client.bucket(BUCKET_NAME)
-
-    latest_csv = _latest_csv_yyyymm(bucket)
-    logger.info("Latest CSV month in GCS: %s", latest_csv)
-
-    if os.path.exists(LOCAL_DB):
-        try:
-            conn = duckdb.connect(LOCAL_DB)
-            tables = [r[0] for r in conn.execute("SHOW TABLES").fetchall()]
-            if _cached_yyyymm(conn) == latest_csv and "ods_mapping" in tables and "prescribing" in tables:
-                logger.info("Local DuckDB is up to date, reusing.")
-                return conn
-            conn.close()
-            logger.info("Local DuckDB is stale.")
-        except Exception as e:
-            logger.warning("Local DuckDB unusable: %s", e)
-
-    tmp_path = LOCAL_DB + ".tmp"
-    try:
-        with st.spinner("Downloading cached database..."):
-            bucket.blob(GCS_DB_PATH).download_to_filename(tmp_path)
-        os.replace(tmp_path, LOCAL_DB)
-        conn = duckdb.connect(LOCAL_DB)
-        tables = [r[0] for r in conn.execute("SHOW TABLES").fetchall()]
-        if _cached_yyyymm(conn) == latest_csv and "ods_mapping" in tables and "prescribing" in tables:
-            logger.info("GCS-cached DuckDB is up to date, using it.")
-            return conn
-        logger.info("GCS-cached DuckDB is stale or missing tables, doing full rebuild.")
-        conn.close()
-    except Exception as e:
-        logger.info("No usable GCS-cached DuckDB (%s), doing full rebuild.", e)
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
-
-    if os.path.exists(LOCAL_DB):
-        os.remove(LOCAL_DB)
-
-    with st.spinner("Rebuilding database from source data - this may take a few minutes..."):
-        conn = duckdb.connect(LOCAL_DB)
-        _rebuild_prescribing(conn)
-        _rebuild_ods_mapping(conn)
-        conn.checkpoint()
-        conn.close()
-
-    logger.info("DB file exists after rebuild: %s, size: %s",
-                os.path.exists(LOCAL_DB),
-                os.path.getsize(LOCAL_DB) if os.path.exists(LOCAL_DB) else "N/A")
-
-    if not os.path.exists(LOCAL_DB):
-        logger.error("DuckDB file not created at %s", LOCAL_DB)
-        conn = duckdb.connect(LOCAL_DB)
-        return conn
-
-    _save_db_to_gcs(bucket)
-    return duckdb.connect(LOCAL_DB)
-
-
-# ── Query helpers ─────────────────────────────────────────────────────────────
-
-def query_month_data(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.DataFrame:
-    return conn.execute(
-        """
-        SELECT month, sum(items) AS items, sum(actual_cost) AS actual_cost
-        FROM prescribing AS rx
-        WHERE EXISTS (
-            SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
-            WHERE LEFT(rx.hospital, LENGTH(code)) = code
-        )
-        GROUP BY month
-        ORDER BY month
-        """,
-        [ods_codes],
-    ).fetchdf()
-
-
-@st.cache_data
-def query_date_range(_conn):
-    return _conn.execute("""
-        SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
-    """).fetchone()
-
-
-def query_top(_conn, ods_codes, start_date, end_date):
-    return _conn.execute(
-        """
-        SELECT bnf_name, rx.hospital, sum(actual_cost) AS actual_cost, sum(items) AS items
-        FROM prescribing AS rx
-        WHERE EXISTS (
-            SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
-            WHERE LEFT(rx.hospital, LENGTH(code)) = code
-        )
-        AND CAST(month AS DATE) BETWEEN $2 AND $3
-        GROUP BY bnf_name, rx.hospital
-        """,
-        [ods_codes, start_date, end_date],
-    ).fetchdf()
-
 
 # ── UI ────────────────────────────────────────────────────────────────────────
 
@@ -210,7 +37,6 @@ df["ultimate_successors"] = df["ultimate_successors"].apply(
 
 df_open = df[df["legal_closed_date"].isna()].copy()
 
-# Build lookup dicts - only map open trusts to names
 code_to_name = df[df["legal_closed_date"].isna()].set_index("ods_code")["ods_name"].to_dict()
 predecessor_to_successor = {}
 for _, row in df[df["legal_closed_date"].notna()].iterrows():
@@ -248,7 +74,7 @@ with st.sidebar:
 
     st.divider()
 
-    min_date, max_date = query_date_range(conn)
+    min_date, max_date = conn.execute(load_sql("date_range.sql")).fetchone()
     default_start = max_date - pd.DateOffset(months=3)
 
     start_date, end_date = st.slider(
@@ -260,7 +86,6 @@ with st.sidebar:
     )
 
     top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
-
     sort_by = st.radio("Sort by", ["Cost", "Items"], horizontal=True)
 
 # ── ODS code resolution ───────────────────────────────────────────────────────
@@ -303,7 +128,7 @@ if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
 # ── Charts ────────────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
-    month_data = query_month_data(conn, ods_codes)
+    month_data = conn.execute(load_sql("month_data.sql"), [ods_codes]).fetchdf()
 
 col1, col2 = st.columns(2)
 
@@ -330,21 +155,18 @@ with col2:
 # ── Table ─────────────────────────────────────────────────────────────────────
 
 with st.spinner("Loading table data..."):
-    detail_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date)
+    detail_data = conn.execute(load_sql("top.sql"), [ods_codes, start_date, end_date]).fetchdf()
 
-# Remap closed hospital codes to their successor
 detail_data["hospital"] = detail_data["hospital"].apply(
     lambda x: predecessor_to_successor.get(x, x)
 )
 
-# Re-aggregate after remapping
 detail_data = (
     detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
     .sum()
     .reset_index()
 )
 
-# Remap hospital codes to names using prefix match
 def lookup_name(code: str) -> str:
     if code in code_to_name:
         return code_to_name[code]
@@ -357,7 +179,11 @@ detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
 
 with st.sidebar:
     bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
-    sel_bnf = st.multiselect("Filter by BNF name", bnf_opts, default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts], key="sel_bnf")
+    sel_bnf = st.multiselect(
+        "Filter by BNF name", bnf_opts,
+        default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts],
+        key="sel_bnf"
+    )
 
 if sel_bnf:
     detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
