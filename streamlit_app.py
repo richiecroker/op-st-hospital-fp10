@@ -338,7 +338,17 @@ detail_data = (
 )
 
 # Remap hospital codes to names
-detail_data["hospital"] = detail_data["hospital"].map(lambda x: code_to_name.get(x, x))
+def lookup_name(code: str) -> str:
+    # exact match first
+    if code in code_to_name:
+        return code_to_name[code]
+    # prefix match - find the ODS code that is a prefix of this hospital code
+    for ods_code, name in code_to_name.items():
+        if code.startswith(ods_code):
+            return name
+    return code
+
+detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
 
 bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
 sel_bnf = st.multiselect("Filter by BNF name", bnf_opts, default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts], key="sel_bnf")
