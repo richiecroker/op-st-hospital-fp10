@@ -43,7 +43,7 @@ for _, row in df[df["legal_closed_date"].notna()].iterrows():
     for successor in row["ultimate_successors"]:
         predecessor_to_successor[row["ods_code"]] = successor
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── Sidebar part 1: organisation filters ─────────────────────────────────────
 
 with st.sidebar:
     st.header("Filters")
@@ -71,24 +71,6 @@ with st.sidebar:
     pr_opts = list(pr_map.keys())
     sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
     sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
-
-    st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
-
-    st.divider()
-
-    min_date, max_date = conn.execute(load_sql("date_range.sql")).fetchone()
-    default_start = max_date - pd.DateOffset(months=3)
-
-    start_date, end_date = st.slider(
-        "Date range",
-        min_value=min_date,
-        max_value=max_date,
-        value=(default_start.date(), max_date),
-        format="MMM YYYY"
-    )
-
-    top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
-    sort_by = st.radio("Sort by", ["Cost", "Items"], horizontal=True)
 
 # ── ODS code resolution ───────────────────────────────────────────────────────
 
@@ -118,14 +100,33 @@ elif sel_regions:
 else:
     ods_codes = resolve_ods_codes(df_open["ods_code"].unique().tolist(), df)
 
-predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
-if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
-    parts = [
-        f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
-        for row in predecessors.itertuples(index=False)
-    ]
-    noun = "organisation" if len(predecessors) == 1 else "organisations"
-    
+# ── Sidebar part 2: predecessor info + display controls ──────────────────────
+
+with st.sidebar:
+    predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
+    if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
+        parts = [
+            f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
+            for row in predecessors.itertuples(index=False)
+        ]
+        noun = "organisation" if len(predecessors) == 1 else "organisations"
+        st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
+
+    st.divider()
+
+    min_date, max_date = conn.execute(load_sql("date_range.sql")).fetchone()
+    default_start = max_date - pd.DateOffset(months=3)
+
+    start_date, end_date = st.slider(
+        "Date range",
+        min_value=min_date,
+        max_value=max_date,
+        value=(default_start.date(), max_date),
+        format="MMM YYYY"
+    )
+
+    top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
+    sort_by = st.radio("Sort by", ["Cost", "Items"], horizontal=True)
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 
@@ -149,79 +150,3 @@ with col2:
     fig2.add_trace(go.Scatter(x=month_data["month"], y=month_data["actual_cost"], mode="lines"))
     fig2.update_layout(
         title="Cost over Time",
-        xaxis=dict(type="date"),
-        yaxis=dict(title="Cost", rangemode="tozero"),
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-
-# ── Table ─────────────────────────────────────────────────────────────────────
-
-with st.spinner("Loading table data..."):
-    detail_data = conn.execute(load_sql("top.sql"), [ods_codes, start_date, end_date]).fetchdf()
-
-detail_data["hospital"] = detail_data["hospital"].apply(
-    lambda x: predecessor_to_successor.get(x, x)
-)
-
-detail_data = (
-    detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
-    .sum()
-    .reset_index()
-)
-
-def lookup_name(code: str) -> str:
-    if code in code_to_name:
-        return code_to_name[code]
-    for ods_code, name in code_to_name.items():
-        if code.startswith(ods_code):
-            return name
-    return code
-
-detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
-
-with st.sidebar:
-    bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
-    sel_bnf = st.multiselect(
-        "Filter by BNF name", bnf_opts,
-        default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts],
-        key="sel_bnf"
-    )
-
-if sel_bnf:
-    detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
-
-sort_col = "actual_cost" if sort_by == "Cost" else "items"
-single_trust = len(ods_codes) == 1
-
-top_ranked = (
-    detail_data.groupby("bnf_name")[["items", "actual_cost"]]
-    .sum().reset_index()
-    .nlargest(top_n, sort_col)
-)
-
-st.subheader(f"Top {top_n} by {sort_by.lower()} — {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
-for _, row in top_ranked.iterrows():
-    label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
-    if single_trust:
-        st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)")
-    else:
-        trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
-        with st.expander(label):
-            st.dataframe(
-                trust_breakdown[["hospital", "actual_cost", "items"]]
-                .sort_values(sort_col, ascending=False)
-                .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
-                .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
-                hide_index=True,
-            )
-
-# ── Changelog ─────────────────────────────────────────────────────────────────
-
-st.divider()
-
-with open("changelog.yaml") as f:
-    changelog = yaml.safe_load(f)
-
-with st.expander("Changelog"):
-    for entry in reversed(changelog):
-        st.markdown(f"**{entry['date']}** — {entry['change']} *({entry['person']})*")
