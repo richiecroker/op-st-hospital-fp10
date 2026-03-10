@@ -215,6 +215,8 @@ for _, row in top_ranked.iterrows():
 
 # ── Changelog ─────────────────────────────────────────────────────────────────
 
+st.divider()
+
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
 

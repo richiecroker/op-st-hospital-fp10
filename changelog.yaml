@@ -13,3 +13,7 @@
 - date: 2026-03-09
   change: Added sliders for dates and numbers, add search box for drugs
   person: Richard Croker
+
+- date: 2026-03-10
+  change: Add sidebar, have unified table for cost and items, show breakdown by trust
+  person: Richard Croker
