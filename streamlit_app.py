@@ -20,7 +20,7 @@ st.set_page_config(layout="wide")
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 BUCKET_NAME      = "ebmdatalab"
-CSV_PREFIX       = "RC_tests/HOSPITAL_DISP_COMMUNITY_"  # blobs end in _yyyymm.csv
+CSV_PREFIX       = "RC_tests/HOSPITAL_DISP_COMMUNITY_"
 GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10-dev.duckdb"
 LOCAL_DB         = "/tmp/app.duckdb"
 SQL_PRESCRIBING  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries", "build_prescribing.sql")
@@ -32,17 +32,13 @@ BQ_ODS_TABLE     = "ebmdatalab.scmd_pipeline.ods"
 def _credentials():
     return service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
 
-
 def _gcs_client():
-   
     return storage.Client(credentials=_credentials())
-
 
 def _bq_client():
     return bigquery.Client(credentials=_credentials(), project="ebmdatalab")
 
-
-def _latest_csv_yyyymm(bucket) -> str | None: #Return the latest yyyymm suffix found among CSVs in GCS
+def _latest_csv_yyyymm(bucket) -> str | None:
     months = []
     for blob in bucket.list_blobs(prefix=CSV_PREFIX):
         m = re.search(r"_(\d{6})\.csv$", blob.name)
@@ -50,8 +46,7 @@ def _latest_csv_yyyymm(bucket) -> str | None: #Return the latest yyyymm suffix f
             months.append(m.group(1))
     return max(months) if months else None
 
-
-def _cached_yyyymm(conn) -> str | None: #Return the latest yyyymm stored in the local DuckDB prescribing table
+def _cached_yyyymm(conn) -> str | None:
     try:
         result = conn.execute(
             "SELECT strftime(MAX(CAST(month AS DATE)), '%Y%m') FROM prescribing"
@@ -60,15 +55,13 @@ def _cached_yyyymm(conn) -> str | None: #Return the latest yyyymm stored in the 
     except Exception:
         return None
 
-
-def _normalise_df(df: pd.DataFrame) -> pd.DataFrame: #Convert BQ-specific types that DuckDB doesn't recognise (e.g. dbdate) to standard types.
+def _normalise_df(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
         if hasattr(df[col].dtype, "name") and "date" in str(df[col].dtype).lower():
             df[col] = pd.to_datetime(df[col]).dt.date
     return df
 
-
-def _rebuild_prescribing(conn): #Pull pre-aggregated prescribing data from BigQuery using build_prescribing.sql.
+def _rebuild_prescribing(conn):
     with open(SQL_PRESCRIBING) as f:
         sql = f.read()
     bq = _bq_client()
@@ -78,8 +71,7 @@ def _rebuild_prescribing(conn): #Pull pre-aggregated prescribing data from BigQu
     conn.execute("CREATE TABLE prescribing AS SELECT * FROM _tmp")
     conn.unregister("_tmp")
 
-
-def _rebuild_ods_mapping(conn): #Pull ods_mapping from BigQuery into DuckDB.
+def _rebuild_ods_mapping(conn):
     bq = _bq_client()
     df = _normalise_df(bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe())
     conn.execute("DROP TABLE IF EXISTS ods_mapping")
@@ -87,8 +79,7 @@ def _rebuild_ods_mapping(conn): #Pull ods_mapping from BigQuery into DuckDB.
     conn.execute("CREATE TABLE ods_mapping AS SELECT * FROM _tmp")
     conn.unregister("_tmp")
 
-
-def _save_db_to_gcs(bucket): #Upload the local DuckDB to GCS so the next cold start can skip a rebuild.
+def _save_db_to_gcs(bucket):
     with st.spinner("Saving database to GCS for next time..."):
         tmp = LOCAL_DB + ".upload.tmp"
         shutil.copy2(LOCAL_DB, tmp)
@@ -102,23 +93,12 @@ def _save_db_to_gcs(bucket): #Upload the local DuckDB to GCS so the next cold st
 
 @st.cache_resource
 def get_duckdb_connection():
-    """Return a ready DuckDB connection, rebuilding from source if stale or absent.
-
-    Logic:
-    1. If a local DB exists and its latest month matches the latest CSV in GCS -> reuse it.
-    2. Else try downloading the GCS-cached DuckDB and check freshness again (fast path).
-    3. If still stale or missing -> full rebuild from BQ, then save back to GCS.
-
-    NOTE: Connection is shared across Streamlit sessions (cache_resource).
-    Never register virtual tables on it - use parameterised queries instead.
-    """
     storage_client = _gcs_client()
     bucket = storage_client.bucket(BUCKET_NAME)
 
     latest_csv = _latest_csv_yyyymm(bucket)
     logger.info("Latest CSV month in GCS: %s", latest_csv)
 
-    # 1. Check local cache
     if os.path.exists(LOCAL_DB):
         try:
             conn = duckdb.connect(LOCAL_DB)
@@ -131,7 +111,6 @@ def get_duckdb_connection():
         except Exception as e:
             logger.warning("Local DuckDB unusable: %s", e)
 
-    # 2. Try GCS-cached DuckDB
     tmp_path = LOCAL_DB + ".tmp"
     try:
         with st.spinner("Downloading cached database..."):
@@ -149,8 +128,6 @@ def get_duckdb_connection():
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-    # 3. Full rebuild from BigQuery
-    # Remove any stale local DB first to ensure a clean connection
     if os.path.exists(LOCAL_DB):
         os.remove(LOCAL_DB)
 
@@ -158,7 +135,7 @@ def get_duckdb_connection():
         conn = duckdb.connect(LOCAL_DB)
         _rebuild_prescribing(conn)
         _rebuild_ods_mapping(conn)
-        conn.checkpoint()  # flush all writes to disk before uploading
+        conn.checkpoint()
 
     _save_db_to_gcs(bucket)
     return conn
@@ -174,7 +151,7 @@ def query_month_data(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> p
         WHERE EXISTS (
             SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
             WHERE LEFT(rx.hospital, LENGTH(code)) = code
-            )
+        )
         GROUP BY month
         ORDER BY month
         """,
@@ -182,56 +159,24 @@ def query_month_data(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> p
     ).fetchdf()
 
 
-def query_top_items(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.DataFrame:
-    return conn.execute(
+@st.cache_data
+def query_date_range(_conn):
+    return _conn.execute("""
+        SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
+    """).fetchone()
+
+
+def query_top(_conn, ods_codes, start_date, end_date):
+    return _conn.execute(
         """
-        SELECT bnf_name, sum(items) AS items, sum(actual_cost) AS actual_cost
+        SELECT bnf_name, rx.hospital, sum(actual_cost) AS actual_cost, sum(items) AS items
         FROM prescribing AS rx
         WHERE EXISTS (
             SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
             WHERE LEFT(rx.hospital, LENGTH(code)) = code
-            )
-        AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
-        GROUP BY bnf_name
-        ORDER BY items DESC
-        LIMIT 20
-        """,
-        [ods_codes],
-    ).fetchdf()
-
-
-def query_top_cost(conn: duckdb.DuckDBPyConnection, ods_codes: list[str]) -> pd.DataFrame:
-    return conn.execute(
-        """
-        SELECT bnf_name, sum(actual_cost) AS actual_cost, sum(items) AS items, 
-        FROM prescribing AS rx
-        WHERE EXISTS (
-            SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
-            WHERE LEFT(rx.hospital, LENGTH(code)) = code
-            )
-        AND CAST(month AS DATE) >= (SELECT MAX(CAST(month AS DATE)) FROM prescribing) - INTERVAL '3 months'
-        GROUP BY bnf_name
-        ORDER BY actual_cost DESC
-        LIMIT 20
-        """,
-        [ods_codes],
-    ).fetchdf()
-
-
-def query_top(conn, ods_codes, start_date, end_date):
-    return conn.execute(
-        """
-        WITH filtered AS (
-            SELECT bnf_name, sum(actual_cost) AS actual_cost, sum(items) AS items
-            FROM prescribing AS rx
-            WHERE EXISTS (
-                SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
-                WHERE LEFT(rx.hospital, LENGTH(code)) = code
-            )
-            AND CAST(month AS DATE) BETWEEN $2 AND $3
-            GROUP BY bnf_name
         )
-        SELECT * FROM filtered
+        AND CAST(month AS DATE) BETWEEN $2 AND $3
+        GROUP BY bnf_name, rx.hospital
         """,
         [ods_codes, start_date, end_date],
     ).fetchdf()
@@ -253,22 +198,29 @@ df["ultimate_successors"] = df["ultimate_successors"].apply(
     lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
 )
 
-# Use only open trusts for building filter options
 df_open = df[df["legal_closed_date"].isna()].copy()
 
-# Region filter
+# Build lookup dicts
+code_to_name = df.set_index("ods_code")["ods_name"].to_dict()
+predecessor_to_successor = {}
+for _, row in df[df["legal_closed_date"].notna()].iterrows():
+    for successor in row["ultimate_successors"]:
+        predecessor_to_successor[row["ods_code"]] = successor
+
+# ── Filters ───────────────────────────────────────────────────────────────────
+
+st.info("Please select required organisation - you can do this at any level.")
+
 region_opts = sorted(df_open["region"].dropna().unique().tolist())
 sel_regions = [v for v in st.session_state.get("sel_region", []) if v in region_opts]
 sel_regions = st.multiselect("Region", region_opts, default=sel_regions, key="sel_region")
 df_region = df_open if not sel_regions else df_open[df_open["region"].isin(sel_regions)]
 
-# ICB filter
 icb_opts = sorted(df_region["icb"].dropna().unique().tolist())
 sel_icbs = [v for v in st.session_state.get("sel_icb", []) if v in icb_opts]
 sel_icbs = st.multiselect("ICB", icb_opts, default=sel_icbs, key="sel_icb")
 df_icb = df_region if not sel_icbs else df_region[df_region["icb"].isin(sel_icbs)]
 
-# Hospital filter - only show open trusts
 pr_pairs = (
     df_icb[["ods_code", "ods_name"]]
     .drop_duplicates()
@@ -298,7 +250,6 @@ def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[
         all_codes.update(closed)
     return list(all_codes)
 
-# Resolve which ODS codes to query - use the most specific selection made
 if sel_prs:
     direct_codes = [pr_map[p] for p in sel_prs]
     ods_codes = resolve_ods_codes(direct_codes, df)
@@ -318,14 +269,10 @@ if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
     noun = "organisation" if len(predecessors) == 1 else "organisations"
     st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
 
-# ── Data queries ──────────────────────────────────────────────────────────────
+# ── Charts ────────────────────────────────────────────────────────────────────
 
 with st.spinner("Loading data..."):
     month_data = query_month_data(conn, ods_codes)
-    top_items_data = query_top_items(conn, ods_codes)
-    top_cost_data = query_top_cost(conn, ods_codes)
-
-# ── Charts ────────────────────────────────────────────────────────────────────
 
 col1, col2 = st.columns(2)
 
@@ -351,12 +298,6 @@ with col2:
 
 # ── Tables ────────────────────────────────────────────────────────────────────
 
-@st.cache_data
-def query_date_range(_conn):
-    return _conn.execute("""
-        SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
-    """).fetchone()
-
 min_date, max_date = query_date_range(conn)
 default_start = max_date - pd.DateOffset(months=3)
 
@@ -370,55 +311,82 @@ start_date, end_date = st.slider(
 
 top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
 
-top_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date)
+with st.spinner("Loading table data..."):
+    detail_data = query_top(conn, ods_codes, start_date=start_date, end_date=end_date)
 
-bnf_opts = sorted(top_data["bnf_name"].dropna().unique().tolist())
+# Remap closed hospital codes to their successor
+detail_data["hospital"] = detail_data["hospital"].apply(
+    lambda x: predecessor_to_successor.get(x, x)
+)
+
+# Re-aggregate after remapping
+detail_data = (
+    detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
+    .sum()
+    .reset_index()
+)
+
+# Remap hospital codes to names
+detail_data["hospital"] = detail_data["hospital"].map(lambda x: code_to_name.get(x, x))
+
+bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
 sel_bnf = st.multiselect("Filter by BNF name", bnf_opts, default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts], key="sel_bnf")
 
 if sel_bnf:
-    top_data = top_data[top_data["bnf_name"].isin(sel_bnf)]
+    detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
+
+top_by_items = (
+    detail_data.groupby("bnf_name")[["items", "actual_cost"]]
+    .sum().reset_index()
+    .nlargest(top_n, "items")
+)
+top_by_cost = (
+    detail_data.groupby("bnf_name")[["items", "actual_cost"]]
+    .sum().reset_index()
+    .nlargest(top_n, "actual_cost")
+)
 
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader(f"Top {top_n} items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
-    st.dataframe(
-        top_data.nlargest(top_n, "items").assign(
-            items=lambda df: df.apply(
-                lambda row: "{:,.0f} (£{:,.2f})".format(row["items"], row["actual_cost"]),
-                axis=1
-            )
-        )
-        .drop(columns=["actual_cost"])
-        .rename(columns={
-            "items": "Items (Actual Cost)",
-            "bnf_name": "BNF Name",
-        }),
-        hide_index=True,
-        height=740,
-    )
+    for _, row in top_by_items.iterrows():
+        label = f"{row['bnf_name']} — {row['items']:,.0f} items (£{row['actual_cost']:,.2f})"
+        trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
+        if len(trust_breakdown) > 1:
+            with st.expander(label):
+                st.dataframe(
+                    trust_breakdown[["hospital", "items", "actual_cost"]]
+                    .sort_values("items", ascending=False)
+                    .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
+                    .rename(columns={"hospital": "Hospital", "items": "Items", "actual_cost": "Actual Cost"}),
+                    hide_index=True,
+                )
+        else:
+            st.markdown(f"**{row['bnf_name']}** — {row['items']:,.0f} items (£{row['actual_cost']:,.2f})")
 
 with col2:
     st.subheader(f"Top {top_n} cost items {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
-    st.dataframe(
-        top_data.nlargest(top_n, "actual_cost").assign(
-            actual_cost=lambda df: df.apply(
-                lambda row: "£{:,.2f} ({:,.0f})".format(row["actual_cost"], row["items"]),
-                axis=1
-            )
-        )
-        .drop(columns=["items"])
-        .rename(columns={
-            "actual_cost": "Actual Cost (Items)",
-            "bnf_name": "BNF Name",
-        }),
-        hide_index=True,
-        height=740,
-    )
+    for _, row in top_by_cost.iterrows():
+        label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
+        trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
+        if len(trust_breakdown) > 1:
+            with st.expander(label):
+                st.dataframe(
+                    trust_breakdown[["hospital", "actual_cost", "items"]]
+                    .sort_values("actual_cost", ascending=False)
+                    .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
+                    .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
+                    hide_index=True,
+                )
+        else:
+            st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)")
+
+# ── Changelog ─────────────────────────────────────────────────────────────────
 
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
 
 with st.expander("Changelog"):
-    for entry in reversed(changelog):  # most recent first
+    for entry in reversed(changelog):
         st.markdown(f"**{entry['date']}** — {entry['change']} *({entry['person']})*")
