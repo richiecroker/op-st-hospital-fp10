@@ -43,6 +43,15 @@ for _, row in df[df["legal_closed_date"].notna()].iterrows():
     for successor in row["ultimate_successors"]:
         predecessor_to_successor[row["ods_code"]] = successor
 
+predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
+if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
+    parts = [
+        f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
+        for row in predecessors.itertuples(index=False)
+    ]
+    noun = "organisation" if len(predecessors) == 1 else "organisations"
+    st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
+
 # ── Sidebar part 1: organisation filters ─────────────────────────────────────
 
 with st.sidebar:
@@ -71,6 +80,7 @@ with st.sidebar:
     pr_opts = list(pr_map.keys())
     sel_prs = [v for v in st.session_state.get("sel_pr", []) if v in pr_opts]
     sel_prs = st.multiselect("Hospital Trust", pr_opts, default=sel_prs, key="sel_pr")
+
 
 # ── ODS code resolution ───────────────────────────────────────────────────────
 
@@ -102,17 +112,7 @@ else:
 
 # ── Sidebar part 2: predecessor info + display controls ──────────────────────
 
-with st.sidebar:
-    predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
-    if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
-        parts = [
-            f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
-            for row in predecessors.itertuples(index=False)
-        ]
-        noun = "organisation" if len(predecessors) == 1 else "organisations"
-        st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
-
-    st.divider()
+st.divider()
 
     min_date, max_date = conn.execute(load_sql("date_range.sql")).fetchone()
     default_start = max_date - pd.DateOffset(months=3)
