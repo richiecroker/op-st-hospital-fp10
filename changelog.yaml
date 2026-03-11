@@ -17,3 +17,7 @@
 - date: 2026-03-10
   change: Add sidebar, have unified table for cost and items, show breakdown by trust
   person: Richard Croker
+
+- date: 2026-03-11
+  change: Reverse chart and table position
+  person: Richard Croker
