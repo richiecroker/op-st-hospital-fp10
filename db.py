@@ -80,7 +80,10 @@ def _save_db_to_gcs(bucket):
         tmp = LOCAL_DB + ".upload.tmp"
         shutil.copy2(LOCAL_DB, tmp)
         try:
-            bucket.blob(GCS_DB_PATH).upload_from_filename(tmp)
+            blob = bucket.blob(GCS_DB_PATH)
+            blob.upload_from_filename(tmp, if_generation_match=None)
+        except Exception as e:
+            logger.warning("Failed to save DB to GCS (non-fatal): %s", e)
         finally:
             os.remove(tmp)
 
