@@ -145,6 +145,7 @@ if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
 
 
 # ── Table ─────────────────────────────────────────────────────────────────────
+
 st.info("ℹ️ If you have selected multiple trusts, click on the arrow next to the drug to see prescribing for individual trusts")
 
 with st.spinner("Loading table data..."):
@@ -193,11 +194,18 @@ top_ranked = (
 )
 
 st.subheader(f"Top {top_n} by {sort_by.lower()} — {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
-for _, row in top_ranked.iterrows():
-    label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
-    if single_trust:
-        st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)")
-    else:
+
+if single_trust:
+    st.dataframe(
+        top_ranked
+        .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
+        .rename(columns={"bnf_name": "BNF Name", "actual_cost": "Actual Cost", "items": "Items"}),
+        hide_index=True,
+        height=740,
+    )
+else:
+    for _, row in top_ranked.iterrows():
+        label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
         trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
         with st.expander(label):
             st.dataframe(
@@ -207,6 +215,7 @@ for _, row in top_ranked.iterrows():
                 .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
                 hide_index=True,
             )
+
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 
@@ -234,6 +243,8 @@ with col2:
         yaxis=dict(title="Cost", rangemode="tozero"),
     )
     st.plotly_chart(fig2, use_container_width=True)
+
+
 # ── Changelog ─────────────────────────────────────────────────────────────────
 
 st.divider()
