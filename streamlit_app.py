@@ -115,15 +115,6 @@ else:
 # ── Sidebar part 2: display controls ─────────────────────────────────────────
 
 with st.sidebar:
-    predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
-    if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
-        parts = [
-            f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
-            for row in predecessors.itertuples(index=False)
-        ]
-        noun = "organisation" if len(predecessors) == 1 else "organisations"
-        st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
-
     st.divider()
 
     min_date, max_date = conn.execute(load_sql("date_range.sql")).fetchone()
@@ -139,6 +130,18 @@ with st.sidebar:
 
     top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
     sort_by = st.radio("Sort by", ["Cost", "Items"], horizontal=True)
+
+
+# ── Predecessor info ──────────────────────────────────────────────────────────
+
+predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
+if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
+    parts = [
+        f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
+        for row in predecessors.itertuples(index=False)
+    ]
+    noun = "organisation" if len(predecessors) == 1 else "organisations"
+    st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
 
 
 # ── Charts ────────────────────────────────────────────────────────────────────
@@ -167,6 +170,7 @@ with col2:
         yaxis=dict(title="Cost", rangemode="tozero"),
     )
     st.plotly_chart(fig2, use_container_width=True)
+
 
 # ── Table ─────────────────────────────────────────────────────────────────────
 
@@ -230,6 +234,7 @@ for _, row in top_ranked.iterrows():
                 .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
                 hide_index=True,
             )
+
 
 # ── Changelog ─────────────────────────────────────────────────────────────────
 
