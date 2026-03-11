@@ -145,7 +145,7 @@ if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
 
 
 # ── Table ─────────────────────────────────────────────────────────────────────
-st.info("ℹ️ If you have selected multiple trusts, click on the arrow next to the drug to see prescribing for individual trusts"
+st.info("ℹ️ If you have selected multiple trusts, click on the arrow next to the drug to see prescribing for individual trusts")
 
 with st.spinner("Loading table data..."):
     detail_data = conn.execute(load_sql("top.sql"), [ods_codes, start_date, end_date]).fetchdf()
