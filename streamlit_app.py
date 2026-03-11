@@ -174,12 +174,72 @@ with col2:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
+# ── Table ─────────────────────────────────────────────────────────────────────
+
+with st.spinner("Loading table data..."):
+    detail_data = conn.execute(load_sql("top.sql"), [ods_codes, start_date, end_date]).fetchdf()
+
+detail_data["hospital"] = detail_data["hospital"].apply(
+    lambda x: predecessor_to_successor.get(x, x)
+)
+
+detail_data = (
+    detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
+    .sum()
+    .reset_index()
+)
+
+def lookup_name(code: str) -> str:
+    if code in code_to_name:
+        return code_to_name[code]
+    for ods_code, name in code_to_name.items():
+        if code.startswith(ods_code):
+            return name
+    return code
+
+detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
+
+with st.sidebar:
+    bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
+    sel_bnf = st.multiselect(
+        "Filter by BNF name", bnf_opts,
+        default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts],
+        key="sel_bnf"
+    )
+
+if sel_bnf:
+    detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
+
+sort_col = "actual_cost" if sort_by == "Cost" else "items"
+single_trust = len(ods_codes) == 1
+
+top_ranked = (
+    detail_data.groupby("bnf_name")[["items", "actual_cost"]]
+    .sum().reset_index()
+    .nlargest(top_n, sort_col)
+)
+
+st.subheader(f"Top {top_n} by {sort_by.lower()} — {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
+for _, row in top_ranked.iterrows():
+    label = f"{row['bnf_name']} — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)"
+    if single_trust:
+        st.markdown(f"**{row['bnf_name']}** — £{row['actual_cost']:,.2f} ({row['items']:,.0f} items)")
+    else:
+        trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
+        with st.expander(label):
+            st.dataframe(
+                trust_breakdown[["hospital", "actual_cost", "items"]]
+                .sort_values(sort_col, ascending=False)
+                .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
+                .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
+                hide_index=True,
+            )
 
 # ── Changelog ─────────────────────────────────────────────────────────────────
 
 st.divider()
-st.subheader("Changelog")
 
+st.subheader("Changelog")
 with open("changelog.yaml") as f:
     changelog = yaml.safe_load(f)
 
