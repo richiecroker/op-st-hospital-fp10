@@ -39,12 +39,20 @@ df["ultimate_successors"] = df["ultimate_successors"].apply(
     lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
 )
 
-df_open = df[df["legal_closed_date"].isna()].copy()
+# Derive closed_date as the earliest of legal_closed_date and operational_closed_date
+df["closed_date"] = df[["legal_closed_date", "operational_closed_date"]].apply(
+    lambda row: min(d for d in [row["legal_closed_date"], row["operational_closed_date"]] if pd.notna(d))
+    if any(pd.notna(d) for d in [row["legal_closed_date"], row["operational_closed_date"]])
+    else pd.NaT,
+    axis=1
+)
+
+df_open = df[df["closed_date"].isna()].copy()
 
 code_to_name = df_open.set_index("ods_code")["ods_name"].to_dict()
 
 predecessor_to_successor = {}
-for _, row in df[df["legal_closed_date"].notna()].iterrows():
+for _, row in df[df["closed_date"].notna()].iterrows():
     for successor in row["ultimate_successors"]:
         predecessor_to_successor[row["ods_code"]] = successor
 
@@ -93,8 +101,8 @@ def resolve_ods_codes(selected_codes: list[str], df_full: pd.DataFrame) -> list[
     for code in selected_codes:
         mask = df_full["ultimate_successors"].apply(lambda x: code in x)
         closed = df_full[
-            df_full["legal_closed_date"].notna()
-            & (pd.to_datetime(df_full["legal_closed_date"]) >= earliest_month)
+            df_full["closed_date"].notna()
+            & (pd.to_datetime(df_full["closed_date"]) >= earliest_month)
             & mask
         ]["ods_code"].tolist()
         all_codes.update(closed)
@@ -134,10 +142,10 @@ with st.sidebar:
 
 # ── Predecessor info ──────────────────────────────────────────────────────────
 
-predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
+predecessors = df[df["ods_code"].isin(ods_codes) & df["closed_date"].notna()]
 if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
     parts = [
-        f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
+        f"- {row.ods_name} (closed: {pd.to_datetime(row.closed_date).strftime('%-d %B %Y')})"
         for row in predecessors.itertuples(index=False)
     ]
     noun = "organisation" if len(predecessors) == 1 else "organisations"
