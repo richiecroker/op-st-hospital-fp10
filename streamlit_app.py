@@ -70,7 +70,7 @@ with st.sidebar:
 
     icb_opts = sorted(df_region["icb"].dropna().unique().tolist())
     sel_icbs = [v for v in st.session_state.get("sel_icb", []) if v in icb_opts]
-    sel_icbs = st.multiselect("ICB", icb_opts, default=sel_icbs, key="sel_icb")
+    sel_icbs = st.multiselect("ICS", icb_opts, default=sel_icbs, key="sel_icb")
     df_icb = df_region if not sel_icbs else df_region[df_region["icb"].isin(sel_icbs)]
 
     pr_pairs = (
