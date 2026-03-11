@@ -115,6 +115,15 @@ else:
 # ── Sidebar part 2: display controls ─────────────────────────────────────────
 
 with st.sidebar:
+    predecessors = df[df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()]
+    if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
+        parts = [
+            f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
+            for row in predecessors.itertuples(index=False)
+        ]
+        noun = "organisation" if len(predecessors) == 1 else "organisations"
+        st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
+
     st.divider()
 
     min_date, max_date = conn.execute(load_sql("date_range.sql")).fetchone()
@@ -130,21 +139,6 @@ with st.sidebar:
 
     top_n = st.slider("Top N items", min_value=5, max_value=100, value=20)
     sort_by = st.radio("Sort by", ["Cost", "Items"], horizontal=True)
-
-
-# ── Main body: predecessor info (moved from sidebar) ─────────────────────────
-
-predecessors = df[
-    df["ods_code"].isin(ods_codes) & df["legal_closed_date"].notna()
-]
-
-if not predecessors.empty and (sel_prs or sel_icbs or sel_regions):
-    parts = [
-        f"- {row.ods_name} (closed: {pd.to_datetime(row.legal_closed_date).strftime('%-d %B %Y')})"
-        for row in predecessors.itertuples(index=False)
-    ]
-    noun = "organisation" if len(predecessors) == 1 else "organisations"
-    st.info(f"ℹ️ Also includes predecessor {noun}:\n" + "\n".join(parts))
 
 
 # ── Charts ────────────────────────────────────────────────────────────────────
@@ -189,6 +183,7 @@ detail_data = (
     .reset_index()
 )
 
+
 def lookup_name(code: str) -> str:
     if code in code_to_name:
         return code_to_name[code]
@@ -196,6 +191,7 @@ def lookup_name(code: str) -> str:
         if code.startswith(ods_code):
             return name
     return code
+
 
 detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
 
@@ -211,7 +207,7 @@ if sel_bnf:
     detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
 
 sort_col = "actual_cost" if sort_by == "Cost" else "items"
-single_trust = len(ods_codes) == 1
+single_trust = detail_data["hospital"].nunique() == 1
 
 top_ranked = (
     detail_data.groupby("bnf_name")[["items", "actual_cost"]]
