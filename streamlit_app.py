@@ -204,12 +204,13 @@ top_ranked = (
 st.subheader(f"Top {top_n} by {sort_by.lower()} — {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}")
 
 if single_trust:
+    height = min(740, (len(top_ranked) + 1) * 35 + 10)
     st.dataframe(
         top_ranked
         .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
         .rename(columns={"bnf_name": "BNF Name", "actual_cost": "Actual Cost", "items": "Items"}),
         hide_index=True,
-        height=740,
+        height=height,
     )
 else:
     for _, row in top_ranked.iterrows():
