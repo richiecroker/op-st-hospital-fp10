@@ -21,3 +21,7 @@
 - date: 2026-03-11
   change: Reverse chart and table position
   person: Richard Croker
+
+- date: 2026-03-11
+  change: Fix table size and remove obsolete trusts using `organisational_closed_date`
+  person: Richard Croker
