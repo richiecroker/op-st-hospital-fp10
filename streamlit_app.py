@@ -228,6 +228,11 @@ else:
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 
+
+st.divider()
+
+st.subheader("Total organisation prescribing")
+
 with st.spinner("Loading data..."):
     month_data = conn.execute(load_sql("month_data.sql"), [ods_codes]).fetchdf()
 
