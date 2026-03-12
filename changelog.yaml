@@ -1,0 +1,27 @@
+- date: 2026-03-05
+  change: Initial prototype deployed.  Uses data from hospital FP10s, linked to prescribing organisation
+  person: Richard Croker
+
+- date: 2026-03-06
+  change: Added multiorganisation filters
+  person: Richard Croker
+
+- date: 2026-03-09
+  change: Changed filters to current organisation, and highlights where predecessor organisations are also included.
+  person: Richard Croker
+
+- date: 2026-03-09
+  change: Added sliders for dates and numbers, add search box for drugs
+  person: Richard Croker
+
+- date: 2026-03-10
+  change: Add sidebar, have unified table for cost and items, show breakdown by trust
+  person: Richard Croker
+
+- date: 2026-03-11
+  change: Reverse chart and table position
+  person: Richard Croker
+
+- date: 2026-03-11
+  change: Fix table size and remove obsolete trusts using `organisational_closed_date`
+  person: Richard Croker

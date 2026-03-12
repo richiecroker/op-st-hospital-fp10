@@ -1,0 +1,1 @@
+SELECT MIN(CAST(month AS DATE)), MAX(CAST(month AS DATE)) FROM prescribing
