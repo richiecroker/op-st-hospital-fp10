@@ -33,7 +33,7 @@ Please let us know what you think, and what you'd like to see.  Email us at [ben
 st.title("Hospital FP10s dispensed in the community viewer")
 
 conn = get_duckdb_connection()
-st.write(conn.execute("SHOW TABLES").fetchall())
+
 df = conn.execute("SELECT * FROM ods_mapping").fetchdf()
 df["ultimate_successors"] = df["ultimate_successors"].apply(
     lambda x: list(x) if isinstance(x, np.ndarray) else ([] if x is None else x)
