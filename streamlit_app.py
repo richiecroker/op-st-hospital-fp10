@@ -182,6 +182,17 @@ def lookup_name(code: str) -> str:
 detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
 
 with st.sidebar:
+    cd_opts = sorted(detail_data["cd_category"].dropna().unique().tolist())
+    sel_cd = st.multiselect(
+        "Filter by CD category", cd_opts,
+        default=[v for v in st.session_state.get("sel_cd", []) if v in cd_opts],
+        key="cd_other"
+    )
+
+if sel_cd:
+    detail_data = detail_data[detail_data["cd_category"].isin(sel_cd)]
+    
+with st.sidebar:
     bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
     sel_bnf = st.multiselect(
         "Filter by BNF name", bnf_opts,
