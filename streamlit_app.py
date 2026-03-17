@@ -163,13 +163,6 @@ detail_data["hospital"] = detail_data["hospital"].apply(
     lambda x: predecessor_to_successor.get(x, x)
 )
 
-detail_data = (
-    detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
-    .sum()
-    .reset_index()
-)
-
-
 def lookup_name(code: str) -> str:
     if code in code_to_name:
         return code_to_name[code]
@@ -181,8 +174,22 @@ def lookup_name(code: str) -> str:
 
 detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
 
+# NEW: capture full BNF options before any filtering
+bnf_opts_all = sorted(detail_data["bnf_name"].dropna().unique().tolist())
+
 with st.sidebar:
-    bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
+    cd_opts = sorted(detail_data["cd_category"].dropna().unique().tolist())
+    sel_cd = st.multiselect(
+        "Filter by CD category", cd_opts,
+        default=[v for v in st.session_state.get("sel_cd", []) if v in cd_opts],
+        key="cd_other"
+    )
+
+if sel_cd:
+    detail_data = detail_data[detail_data["cd_category"].isin(sel_cd)]
+
+with st.sidebar:
+    bnf_opts = bnf_opts_all  # <-- use full list, not filtered data
     sel_bnf = st.multiselect(
         "Filter by BNF name", bnf_opts,
         default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts],

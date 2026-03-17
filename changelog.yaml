@@ -25,3 +25,7 @@
 - date: 2026-03-11
   change: Fix table size and remove obsolete trusts using `organisational_closed_date`
   person: Richard Croker
+
+- date: 2026-03-17
+  change: Add controlled drugs filter
+  person: Richard Croker

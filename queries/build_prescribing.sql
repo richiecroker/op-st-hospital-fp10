@@ -1,15 +1,21 @@
 SELECT
   PARSE_DATE('%Y%m', CAST(period AS STRING)) AS month,
   BNF_NAME AS bnf_name,
-  BNF_CODE AS bnf_code,
+  rx.BNF_CODE AS bnf_code,
+  COALESCE(vmp.controlinfo_cat,"No Controlled Drug Status") as cd_category,
   HOSPITAL_TRUST_CODE AS hospital,
   sum(TOTAL_QUANTITY) AS quantity,
   sum(TOTAL_ITEMS) AS items,
   sum(TOTAL_ACTUAL_COST) AS actual_cost
-FROM ebmdatalab.hospitalcommunityprescribing.hospital_community_rx
+FROM ebmdatalab.hospitalcommunityprescribing.hospital_community_rx as rx
+LEFT JOIN
+dmd.vmp_full as vmp
+ON
+CONCAT(SUBSTR(rx.BNF_CODE,0,9),"AA",SUBSTR(rx.BNF_CODE,-2),SUBSTR(rx.BNF_CODE,-2)) = vmp.bnf_code
 WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) >= '2019-01-01'
 GROUP BY
   month,
   bnf_name,
   bnf_code,
-  hospital
+  hospital,
+  vmp.controlinfo_cat
