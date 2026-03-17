@@ -174,6 +174,9 @@ def lookup_name(code: str) -> str:
 
 detail_data["hospital"] = detail_data["hospital"].apply(lookup_name)
 
+# NEW: capture full BNF options before any filtering
+bnf_opts_all = sorted(detail_data["bnf_name"].dropna().unique().tolist())
+
 with st.sidebar:
     cd_opts = sorted(detail_data["cd_category"].dropna().unique().tolist())
     sel_cd = st.multiselect(
@@ -184,17 +187,17 @@ with st.sidebar:
 
 if sel_cd:
     detail_data = detail_data[detail_data["cd_category"].isin(sel_cd)]
-    
-#with st.sidebar:
- #   bnf_opts = sorted(detail_data["bnf_name"].dropna().unique().tolist())
- #   sel_bnf = st.multiselect(
- # #      "Filter by BNF name", bnf_opts,
- #       default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts],
-#        key="sel_bnf"
-#    )
-#
-#if sel_bnf:
-#    detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
+
+with st.sidebar:
+    bnf_opts = bnf_opts_all  # <-- use full list, not filtered data
+    sel_bnf = st.multiselect(
+        "Filter by BNF name", bnf_opts,
+        default=[v for v in st.session_state.get("sel_bnf", []) if v in bnf_opts],
+        key="sel_bnf"
+    )
+
+if sel_bnf:
+    detail_data = detail_data[detail_data["bnf_name"].isin(sel_bnf)]
 
 sort_col = "actual_cost" if sort_by == "Cost" else "items"
 single_trust = detail_data["hospital"].nunique() == 1
