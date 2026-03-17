@@ -180,7 +180,7 @@ bnf_opts_all = sorted(detail_data["bnf_name"].dropna().unique().tolist())
 with st.sidebar:
     cd_opts = sorted(detail_data["cd_category"].dropna().unique().tolist())
     sel_cd = st.multiselect(
-        "Filter by CD category", cd_opts,
+        "ℹ️ NEW: Filter by CD category", cd_opts,
         default=[v for v in st.session_state.get("sel_cd", []) if v in cd_opts],
         key="cd_other"
     )
