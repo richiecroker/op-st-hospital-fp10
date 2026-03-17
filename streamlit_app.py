@@ -162,7 +162,10 @@ with st.spinner("Loading table data..."):
 detail_data["hospital"] = detail_data["hospital"].apply(
     lambda x: predecessor_to_successor.get(x, x)
 )
-
+st.write("detail_data type:", type(detail_data))
+st.write("columns:", getattr(detail_data, "columns", None))
+st.write("head (first 5 rows):")
+st.dataframe(detail_data.head() if hasattr(detail_data, "head") else detail_data)
 detail_data = (
     detail_data.groupby(["bnf_name", "hospital"])[["items", "actual_cost"]]
     .sum()
