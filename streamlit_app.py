@@ -172,7 +172,19 @@ detail_data = (
     .reset_index()
 )
 
-
+st.write("detail_data type:", type(detail_data))
+# shape tells you rows, cols
+st.write("shape:", getattr(detail_data, "shape", None))
+# columns (repr) again to be 100% sure
+st.write("columns (repr):", [repr(c) for c in getattr(detail_data, "columns", [])])
+# show head and a full info summary (info works on DataFrame only)
+if isinstance(detail_data, pd.DataFrame):
+    st.write("head (first 10 rows):")
+    st.dataframe(detail_data.head(10))
+    # prints dtypes and non-null counts
+    buf = []
+    detail_data.info(buf=buf)
+    st.text("\n".join(buf))
 def lookup_name(code: str) -> str:
     if code in code_to_name:
         return code_to_name[code]
