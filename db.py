@@ -10,6 +10,7 @@ import streamlit as st
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BUCKET_NAME      = "ebmdatalab"
@@ -60,7 +61,7 @@ def _rebuild_prescribing(conn):
         query_job = bq.query(sql)
         df = _normalise_df(query_job.result().to_dataframe())
     except Exception as e:
-        logger.error("BigQuery error in build_prescribing.sql: %s", e)
+        logger.exception("BigQuery error in build_prescribing.sql")
         raise
     conn.execute("DROP TABLE IF EXISTS prescribing")
     conn.register("_tmp", df)
@@ -69,7 +70,11 @@ def _rebuild_prescribing(conn):
 
 def _rebuild_ods_mapping(conn):
     bq = _bq_client()
-    df = _normalise_df(bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe())
+    try:
+        df = _normalise_df(bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe())
+    except Exception as e:
+        logger.exception("BigQuery error fetching ODS table")
+        raise
     conn.execute("DROP TABLE IF EXISTS ods_mapping")
     conn.register("_tmp", df)
     conn.execute("CREATE TABLE ods_mapping AS SELECT * FROM _tmp")
@@ -81,10 +86,10 @@ def _save_db_to_gcs(bucket):
         try:
             shutil.copy2(LOCAL_DB, tmp)
             blob = bucket.blob(GCS_DB_PATH)
-            blob.upload_from_filename(tmp)  # removed if_generation_match=None
+            blob.upload_from_filename(tmp)
             logger.info("Successfully saved DB to GCS at %s", GCS_DB_PATH)
         except Exception as e:
-            logger.exception("Failed to save DB to GCS")  # logs full stack trace
+            logger.exception("Failed to save DB to GCS")
             st.error(f"Failed to save DB to GCS: {e}")
         finally:
             if os.path.exists(tmp):
@@ -133,10 +138,16 @@ def get_duckdb_connection():
 
     with st.spinner("Rebuilding database from source data - this may take a few minutes..."):
         conn = duckdb.connect(LOCAL_DB)
-        _rebuild_prescribing(conn)
-        _rebuild_ods_mapping(conn)
-        conn.checkpoint()
-        conn.close()
+        try:
+            _rebuild_prescribing(conn)
+            _rebuild_ods_mapping(conn)
+            conn.checkpoint()
+        except Exception as e:
+            logger.exception("Failed during DB rebuild")
+            st.exception(e)
+            raise
+        finally:
+            conn.close()
 
     logger.info("DB file exists after rebuild: %s, size: %s",
                 os.path.exists(LOCAL_DB),
