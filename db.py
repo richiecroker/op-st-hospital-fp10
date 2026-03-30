@@ -84,8 +84,8 @@ def _save_db_to_gcs(bucket):
             blob.upload_from_filename(tmp)  # removed if_generation_match=None
             logger.info("Successfully saved DB to GCS at %s", GCS_DB_PATH)
         except Exception as e:
+            logger.exception("Failed to save DB to GCS")  # logs full stack trace
             st.error(f"Failed to save DB to GCS: {e}")
-            logger.warning("Failed to save DB to GCS (non-fatal): %s", e)
         finally:
             if os.path.exists(tmp):
                 os.remove(tmp)
