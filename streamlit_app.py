@@ -189,15 +189,15 @@ if sel_cd:
     detail_data = detail_data[detail_data["cd_category"].isin(sel_cd)]
     
 with st.sidebar:
-    chap_opts = sorted(detail_data["bnf_chapter"].dropna().unique().tolist())
-    sel_chap = st.multiselect(
-        "ℹ️ NEW: Filter by BNF chapter", chap_opts,
-        default=[v for v in st.session_state.get("sel_chap", []) if v in chap_opts],
-        key="chap_other"
+    chapter_opts = sorted(detail_data["bnf_chapter"].dropna().unique().tolist())
+    sel_chapter = st.multiselect(
+        "ℹ️ NEW: Filter by BNF chapter", chapter_opts,
+        default=[v for v in st.session_state.get("sel_chapter", []) if v in chapter_opts],
+        key="chapter_other"
     )
  
-if chap_cd:
-    detail_data = detail_data[detail_data["bnf_chapter"].isin(chap_cd)]
+if sel_chap:
+    detail_data = detail_data[detail_data["bnf_chapter"].isin(sel_chapter)]
 
 with st.sidebar:
     bnf_opts = bnf_opts_all  # <-- use full list, not filtered data
