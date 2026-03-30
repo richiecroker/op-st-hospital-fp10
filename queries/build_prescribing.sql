@@ -3,7 +3,7 @@ SELECT
   COALESCE(bnf.presentation, rx.bnf_name) AS bnf_name, --- use name from BNF map for consistency, then use rx data name if that doesn't exist
   TRIM(COALESCE(map.current_bnf_code, rx.bnf_code)) as bnf_code, --- map to current BNF code if it exists in the BNF normalisation map
   COALESCE(vmp.controlinfo_cat, "No Controlled Drug Status") AS cd_category, --- gives CD status, with "no status" if it doesn't exist
-  COALESCE(bnf.chapter, "Unknown chapter") AS bnf_chapter, --- gives BNF chapter, with "unknown" if there's issue with drug (e.g. discontinued)
+  COALESCE(bnf.chapter, "Unknown chapter") AS bnf_chapter, --- gives BNF chapter, with "unknown" if there's issue with drug (e.g. discontinued), mapped to the old code if the BNF map hasn't been updated
   HOSPITAL_TRUST_CODE AS hospital,
   SUM(TOTAL_QUANTITY) AS quantity,
   SUM(TOTAL_ITEMS) AS items,
@@ -19,14 +19,18 @@ LEFT JOIN dmd.vmp_full AS vmp
        SUBSTR(rx.BNF_CODE, -2)
      ) = vmp.bnf_code
 
-LEFT JOIN hscic.bnf AS bnf
-  ON rx.BNF_CODE = bnf.presentation_code
-
 LEFT JOIN
   ebmdatalab.hscic.bnf_map AS map
   ON map.former_bnf_code = rx.bnf_code
 
-WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) >= '2019-01-01'
+LEFT JOIN
+  ebmdatalab.hscic.bnf_map AS old_map
+  ON old_map.current_bnf_code = rx.bnf_code
+
+LEFT JOIN hscic.bnf AS bnf
+  ON TRIM(coalesce(old_map.former_bnf_code, rx.bnf_code)) = bnf.presentation_code
+
+WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) >= '2025-12-01'
 
 GROUP BY
   month,
