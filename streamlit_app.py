@@ -22,8 +22,9 @@ def load_sql(filename: str) -> str:
 st.set_page_config(layout="wide")
 
 # ── UI ────────────────────────────────────────────────────────────────────────
+base_dir = os.path.dirname(__file__)
 
-st.image("OpenPrescribing.svg")
+st.image(os.path.join(base_dir, "content", "OpenPrescribing.svg"))
 
 st.info(
     """##### Hello!  This is a **very** early prototype of analysing hospital FP10s that have been dispensed in the community.  
