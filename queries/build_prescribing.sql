@@ -28,7 +28,7 @@ LEFT JOIN
   ON old_map.current_bnf_code = rx.bnf_code
 
 LEFT JOIN hscic.bnf AS bnf
-  ON TRIMCOALESCE(rx.bnf_code, old_map.former_bnf_code)) = bnf.presentation_code
+  ON TRIM(COALESCE(rx.bnf_code, old_map.former_bnf_code)) = bnf.presentation_code
 
 WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) >= '2019-01-01'
 
