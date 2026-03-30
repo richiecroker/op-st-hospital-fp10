@@ -196,7 +196,7 @@ with st.sidebar:
         key="chapter_other"
     )
  
-if sel_chap:
+if sel_chapter:
     detail_data = detail_data[detail_data["bnf_chapter"].isin(sel_chapter)]
 
 with st.sidebar:
