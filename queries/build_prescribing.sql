@@ -30,7 +30,7 @@ LEFT JOIN
 LEFT JOIN hscic.bnf AS bnf
   ON TRIM(coalesce(old_map.former_bnf_code, rx.bnf_code)) = bnf.presentation_code
 
-WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) >= '2025-12-01'
+WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) >= '2019-01-01'
 
 GROUP BY
   month,
