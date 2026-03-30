@@ -78,14 +78,17 @@ def _rebuild_ods_mapping(conn):
 def _save_db_to_gcs(bucket):
     with st.spinner("Saving database to GCS for next time..."):
         tmp = LOCAL_DB + ".upload.tmp"
-        shutil.copy2(LOCAL_DB, tmp)
         try:
+            shutil.copy2(LOCAL_DB, tmp)
             blob = bucket.blob(GCS_DB_PATH)
-            blob.upload_from_filename(tmp, if_generation_match=None)
+            blob.upload_from_filename(tmp)  # removed if_generation_match=None
+            logger.info("Successfully saved DB to GCS at %s", GCS_DB_PATH)
         except Exception as e:
+            st.error(f"Failed to save DB to GCS: {e}")
             logger.warning("Failed to save DB to GCS (non-fatal): %s", e)
         finally:
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                os.remove(tmp)
 
 
 @st.cache_resource
