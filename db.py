@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 BUCKET_NAME      = "ebmdatalab"
 CSV_PREFIX       = "hospitalcommunityprescribing/HOSPITAL_DISP_COMMUNITY_"
-GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10-dev.duckdb"
+GCS_DB_PATH      = "hospitalcommunityprescribing/op_hospital_fp10.duckdb"
 LOCAL_DB         = "/tmp/app.duckdb"
 SQL_DIR          = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries")
 BQ_ODS_TABLE     = "ebmdatalab.scmd_pipeline.ods"
