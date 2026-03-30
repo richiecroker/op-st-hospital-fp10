@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BUCKET_NAME      = "ebmdatalab"
-CSV_PREFIX       = "RC_tests/HOSPITAL_DISP_COMMUNITY_"
+CSV_PREFIX       = "hospitalcommunityprescribing/HOSPITAL_DISP_COMMUNITY_"
 GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10-dev.duckdb"
 LOCAL_DB         = "/tmp/app.duckdb"
 SQL_DIR          = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries")
@@ -133,21 +133,25 @@ def get_duckdb_connection():
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-    if os.path.exists(LOCAL_DB):
-        os.remove(LOCAL_DB)
+    # Clean up any stale local DB or lock files before rebuild
+    for ext in ["", ".wal"]:
+        p = LOCAL_DB + ext
+        if os.path.exists(p):
+            os.remove(p)
 
     with st.spinner("Rebuilding database from source data - this may take a few minutes..."):
-        conn = duckdb.connect(LOCAL_DB)
         try:
-            _rebuild_prescribing(conn)
-            _rebuild_ods_mapping(conn)
-            conn.checkpoint()
+            conn = duckdb.connect(LOCAL_DB)
+            try:
+                _rebuild_prescribing(conn)
+                _rebuild_ods_mapping(conn)
+                conn.checkpoint()
+            finally:
+                conn.close()
         except Exception as e:
             logger.exception("Failed during DB rebuild")
             st.exception(e)
             raise
-        finally:
-            conn.close()
 
     logger.info("DB file exists after rebuild: %s, size: %s",
                 os.path.exists(LOCAL_DB),
