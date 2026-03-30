@@ -32,7 +32,10 @@ def _bq_client():
 
 def _latest_csv_yyyymm(bucket) -> str | None:
     months = []
-    for blob in bucket.list_blobs(prefix=CSV_PREFIX):
+    blobs = list(bucket.list_blobs(prefix=CSV_PREFIX))
+    logger.info("Found %d blobs with prefix %s", len(blobs), CSV_PREFIX)
+    for blob in blobs:
+        logger.info("Blob: %s", blob.name)
         m = re.search(r"_(\d{6})\.csv$", blob.name)
         if m:
             months.append(m.group(1))
