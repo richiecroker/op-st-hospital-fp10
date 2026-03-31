@@ -31,7 +31,7 @@ INNER JOIN bnf_chapter
 LEFT JOIN hscic.bnf AS bnf
   ON rx.bnf_code = bnf.presentation_code
 
-WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) = '2019-01-01'
+WHERE PARSE_DATE('%Y%m', CAST(period AS STRING)) >= '2019-01-01'
 
 GROUP BY
   month,
