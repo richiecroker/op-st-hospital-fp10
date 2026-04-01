@@ -8,4 +8,4 @@ We then process the data in the following ways:
 
 **Assumptions and limitations**
 
-Prescribing data is only used for NHS organisations who are included in the Hospital Prescribing Dispensed in the Community dataset.  These are usually NHS Trusts.  Other prescribing undertaken in primary care, is not included.
+Prescribing data is only used for NHS organisations who are included in the Hospital Prescribing Dispensed in the Community dataset.  These are usually NHS Trusts.  Other prescribing undertaken in primary care is not included.
