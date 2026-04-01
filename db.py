@@ -10,11 +10,12 @@ import streamlit as st
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BUCKET_NAME      = "ebmdatalab"
-CSV_PREFIX       = "RC_tests/HOSPITAL_DISP_COMMUNITY_"
-GCS_DB_PATH      = "hospitalcommunityprescribing/hospitalfp10-dev.duckdb"
+CSV_PREFIX       = "hospitalcommunityprescribing/HOSPITAL_DISP_COMMUNITY_"
+GCS_DB_PATH      = "hospitalcommunityprescribing/op_hospital_fp10.duckdb"
 LOCAL_DB         = "/tmp/app.duckdb"
 SQL_DIR          = os.path.join(os.path.dirname(os.path.abspath(__file__)), "queries")
 BQ_ODS_TABLE     = "ebmdatalab.scmd_pipeline.ods"
@@ -31,7 +32,10 @@ def _bq_client():
 
 def _latest_csv_yyyymm(bucket) -> str | None:
     months = []
-    for blob in bucket.list_blobs(prefix=CSV_PREFIX):
+    blobs = list(bucket.list_blobs(prefix=CSV_PREFIX))
+    logger.info("Found %d blobs with prefix %s", len(blobs), CSV_PREFIX)
+    for blob in blobs:
+        # remove this line: logger.info("Blob: %s", blob.name)
         m = re.search(r"_(\d{6})\.csv$", blob.name)
         if m:
             months.append(m.group(1))
@@ -60,7 +64,7 @@ def _rebuild_prescribing(conn):
         query_job = bq.query(sql)
         df = _normalise_df(query_job.result().to_dataframe())
     except Exception as e:
-        logger.error("BigQuery error in build_prescribing.sql: %s", e)
+        logger.exception("BigQuery error in build_prescribing.sql")
         raise
     conn.execute("DROP TABLE IF EXISTS prescribing")
     conn.register("_tmp", df)
@@ -69,7 +73,11 @@ def _rebuild_prescribing(conn):
 
 def _rebuild_ods_mapping(conn):
     bq = _bq_client()
-    df = _normalise_df(bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe())
+    try:
+        df = _normalise_df(bq.query(f"SELECT * FROM `{BQ_ODS_TABLE}`").to_dataframe())
+    except Exception as e:
+        logger.exception("BigQuery error fetching ODS table")
+        raise
     conn.execute("DROP TABLE IF EXISTS ods_mapping")
     conn.register("_tmp", df)
     conn.execute("CREATE TABLE ods_mapping AS SELECT * FROM _tmp")
@@ -78,14 +86,17 @@ def _rebuild_ods_mapping(conn):
 def _save_db_to_gcs(bucket):
     with st.spinner("Saving database to GCS for next time..."):
         tmp = LOCAL_DB + ".upload.tmp"
-        shutil.copy2(LOCAL_DB, tmp)
         try:
+            shutil.copy2(LOCAL_DB, tmp)
             blob = bucket.blob(GCS_DB_PATH)
-            blob.upload_from_filename(tmp, if_generation_match=None)
+            blob.upload_from_filename(tmp)
+            logger.info("Successfully saved DB to GCS at %s", GCS_DB_PATH)
         except Exception as e:
-            logger.warning("Failed to save DB to GCS (non-fatal): %s", e)
+            logger.exception("Failed to save DB to GCS")
+            st.error(f"Failed to save DB to GCS: {e}")
         finally:
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                os.remove(tmp)
 
 
 @st.cache_resource
@@ -125,15 +136,25 @@ def get_duckdb_connection():
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-    if os.path.exists(LOCAL_DB):
-        os.remove(LOCAL_DB)
+    # Clean up any stale local DB or lock files before rebuild
+    for ext in ["", ".wal"]:
+        p = LOCAL_DB + ext
+        if os.path.exists(p):
+            os.remove(p)
 
     with st.spinner("Rebuilding database from source data - this may take a few minutes..."):
-        conn = duckdb.connect(LOCAL_DB)
-        _rebuild_prescribing(conn)
-        _rebuild_ods_mapping(conn)
-        conn.checkpoint()
-        conn.close()
+        try:
+            conn = duckdb.connect(LOCAL_DB)
+            try:
+                _rebuild_prescribing(conn)
+                _rebuild_ods_mapping(conn)
+                conn.checkpoint()
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.exception("Failed during DB rebuild")
+            st.exception(e)
+            raise
 
     logger.info("DB file exists after rebuild: %s, size: %s",
                 os.path.exists(LOCAL_DB),

@@ -22,8 +22,9 @@ def load_sql(filename: str) -> str:
 st.set_page_config(layout="wide")
 
 # ── UI ────────────────────────────────────────────────────────────────────────
+base_dir = os.path.dirname(__file__)
 
-st.image("OpenPrescribing.svg")
+st.image(os.path.join(base_dir, "content", "OpenPrescribing.svg"))
 
 st.info(
     """##### Hello!  This is a **very** early prototype of analysing hospital FP10s that have been dispensed in the community.  
@@ -31,6 +32,10 @@ Please let us know what you think, and what you'd like to see.  Email us at [ben
 )
 
 st.title("Hospital FP10s dispensed in the community viewer")
+
+with st.expander("Click here to read our methodology", icon=":material/quick_reference:"):
+    with open(os.path.join(base_dir, "content", "methodology.md")) as f:
+        st.markdown(f.read())
 
 conn = get_duckdb_connection()
 
@@ -187,6 +192,17 @@ with st.sidebar:
 
 if sel_cd:
     detail_data = detail_data[detail_data["cd_category"].isin(sel_cd)]
+    
+with st.sidebar:
+    chapter_opts = sorted(detail_data["bnf_chapter"].dropna().unique().tolist())
+    sel_chapter = st.multiselect(
+        "ℹ️ NEW: Filter by BNF chapter", chapter_opts,
+        default=[v for v in st.session_state.get("sel_chapter", []) if v in chapter_opts],
+        key="chapter_other"
+    )
+ 
+if sel_chapter:
+    detail_data = detail_data[detail_data["bnf_chapter"].isin(sel_chapter)]
 
 with st.sidebar:
     bnf_opts = bnf_opts_all  # <-- use full list, not filtered data
@@ -270,10 +286,9 @@ with col2:
 
 st.divider()
 
-st.subheader("Changelog")
-with open("changelog.yaml") as f:
+with open(os.path.join(base_dir, "content", "changelog.yaml")) as f:
     changelog = yaml.safe_load(f)
 
-with st.expander("Click to see changelog"):
+with st.expander("Click to see changelog", icon=":material/history:"):
     for entry in reversed(changelog):
         st.markdown(f"**{entry['date']}** — {entry['change']} *({entry['person']})*")
