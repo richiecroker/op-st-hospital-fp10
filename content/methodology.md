@@ -4,7 +4,7 @@ We then process the data in the following ways:
 
 - we infer the BNF chapter from the data's BNF code.  You can find out more about how this is structured in our [blog on the subject](https://www.bennett.ox.ac.uk/blog/2017/04/prescribing-data-bnf-codes/).
 - we normalise BNF codes and names to the most recently available version.  From time to time [BNF codes change](https://www.nhsbsa.nhs.uk/bnf-version-changes-january-2026), and so we map any obsolete codes, to get a single unbroken dataset for each drug presentation
-- The controlled drugs category comes from the [dictionary of medicines and devices (dm+d)](https://www.nhsbsa.nhs.uk/pharmacies-gp-practices-and-appliance-contractors/nhs-dictionary-medicines-and-devices-dmd), which is also produced by the NHS Business Services Authority.
+- we get the controlled drugs category comes from the [dictionary of medicines and devices (dm+d)](https://www.nhsbsa.nhs.uk/pharmacies-gp-practices-and-appliance-contractors/nhs-dictionary-medicines-and-devices-dmd), which is also produced by the NHS Business Services Authority.
 
 **Assumptions and limitations**
 
