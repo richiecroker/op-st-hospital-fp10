@@ -33,6 +33,10 @@ Please let us know what you think, and what you'd like to see.  Email us at [ben
 
 st.title("Hospital FP10s dispensed in the community viewer")
 
+with st.expander("Click here to read our methodology", icon=":material/quick_reference:"):
+    with open(os.path.join(base_dir, "content", "methodology.md")) as f:
+        st.markdown(f.read())
+
 conn = get_duckdb_connection()
 
 df = conn.execute("SELECT * FROM ods_mapping").fetchdf()
@@ -281,10 +285,6 @@ with col2:
 # ── Changelog ─────────────────────────────────────────────────────────────────
 
 st.divider()
-
-with st.expander("Click here to read our methodology", icon=":material/quick_reference:"):
-    with open(os.path.join(base_dir, "content", "methodology.md")) as f:
-        st.markdown(f.read())
 
 with open(os.path.join(base_dir, "content", "changelog.yaml")) as f:
     changelog = yaml.safe_load(f)
