@@ -7,6 +7,6 @@ We then process the data in the following ways:
 - Controlled Drugs category comes from the [dictionary of medicines and devices (dm+d)](https://www.nhsbsa.nhs.uk/pharmacies-gp-practices-and-appliance-contractors/nhs-dictionary-medicines-and-devices-dmd), which is  also produced by the NHS Business Services Authority.
 The estimator calculates the changes in the following way:
 
-####Assumptions and limitations
+**Assumptions and limitations**
 
 Prescribing data is only used for NHS organisations who are included in the Hospital Prescribing Dispensed in the Community dataset.  These are usually NHS Trusts.  Other prescribing undertaken in primary care, is not included.
