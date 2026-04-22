@@ -33,3 +33,7 @@
 - date: 2026-03-30
   change: Add BNF chapter filter function and normalised BNF names and codes
   person: Richard Croker
+  
+- date: 2026-04-27
+  change: Change charts to selected drugs
+  person: Richard Croker
