@@ -259,6 +259,12 @@ st.subheader("Total organisation prescribing for selected items")
 with st.spinner("Loading data..."):
     filtered_bnf_names = detail_data["bnf_name"].unique().tolist() or None
     month_data = conn.execute(load_sql("month_data.sql"), [ods_codes, filtered_bnf_names]).fetchdf()
+    all_months = pd.date_range(month_data["month"].min(), month_data["month"].max(), freq="MS")
+    month_data = (
+        pd.DataFrame({"month": all_months})
+        .merge(month_data, on="month", how="left")
+        .fillna(0)
+    )
 
 col1, col2 = st.columns(2)
 
