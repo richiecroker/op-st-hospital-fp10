@@ -264,7 +264,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     fig1 = go.Figure()
-    fig1.add_trace(go.Scatter(x=month_data["month"], y=month_data["items"], mode="lines"))
+    fig1.add_trace(go.Bar(x=month_data["month"], y=month_data["items"]))
     fig1.update_layout(
         title="Total number of prescription items for organisation",
         xaxis=dict(type="date"),
@@ -274,7 +274,7 @@ with col1:
 
 with col2:
     fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(x=month_data["month"], y=month_data["actual_cost"], mode="lines"))
+    fig2.add_trace(go.Bar(x=month_data["month"], y=month_data["actual_cost"]))
     fig2.update_layout(
         title="Total actual cost for organisation",
         xaxis=dict(type="date"),
