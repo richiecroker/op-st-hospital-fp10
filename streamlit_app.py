@@ -257,13 +257,8 @@ st.divider()
 st.subheader("Total organisation prescribing for selected items")
 
 with st.spinner("Loading data..."):
-    month_data = (
-        detail_data
-        .groupby("month")[["items", "actual_cost"]]
-        .sum()
-        .reset_index()
-        .sort_values("month")
-    )
+    filtered_bnf_names = detail_data["bnf_name"].unique().tolist() or None
+    month_data = conn.execute(load_sql("month_data.sql"), [ods_codes, filtered_bnf_names]).fetchdf()
 
 col1, col2 = st.columns(2)
 
