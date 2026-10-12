@@ -37,3 +37,7 @@
 - date: 2026-04-27
   change: Change charts to selected drugs
   person: Richard Croker
+  
+- date: 2026-10-12
+  change: Add quantity column
+  person: Richard Croker
