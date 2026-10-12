@@ -1,4 +1,4 @@
-SELECT bnf_name, rx.hospital, cd_category, bnf_chapter, sum(actual_cost) AS actual_cost, sum(items) AS items
+SELECT bnf_name, rx.hospital, cd_category, bnf_chapter, sum(actual_cost) AS actual_cost, sum(items) AS items, sum(quantity) AS quantity
 FROM prescribing AS rx
 WHERE EXISTS (
     SELECT 1 FROM unnest($1::VARCHAR[]) AS t(code)
