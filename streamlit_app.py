@@ -219,7 +219,7 @@ sort_col = "actual_cost" if sort_by == "Cost" else "items"
 single_trust = detail_data["hospital"].nunique() == 1
 
 top_ranked = (
-    detail_data.groupby("bnf_name")[["items", "actual_cost"]]
+    detail_data.groupby("bnf_name")[["items", "actual_cost", "quantity"]]
     .sum().reset_index()
     .nlargest(top_n, sort_col)
 )
@@ -231,7 +231,7 @@ if single_trust:
     st.dataframe(
         top_ranked
         .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
-        .rename(columns={"bnf_name": "BNF Name", "actual_cost": "Actual Cost", "items": "Items"}),
+        .rename(columns={"bnf_name": "BNF Name", "actual_cost": "Actual Cost", "items": "Items", " "quantity": "Quantity"}),
         hide_index=True,
         height=height,
     )
@@ -241,10 +241,10 @@ else:
         trust_breakdown = detail_data[detail_data["bnf_name"] == row["bnf_name"]]
         with st.expander(label):
             st.dataframe(
-                trust_breakdown[["hospital", "actual_cost", "items"]]
+                trust_breakdown[["hospital", "actual_cost", "items", "quantity"]]
                 .sort_values(sort_col, ascending=False)
                 .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
-                .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items"}),
+                .rename(columns={"hospital": "Hospital", "actual_cost": "Actual Cost", "items": "Items", "quantity": "Quantity"}),
                 hide_index=True,
             )
 
