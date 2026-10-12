@@ -231,7 +231,7 @@ if single_trust:
     st.dataframe(
         top_ranked
         .assign(actual_cost=lambda d: d["actual_cost"].map("£{:,.2f}".format))
-        .rename(columns={"bnf_name": "BNF Name", "actual_cost": "Actual Cost", "items": "Items", " "quantity": "Quantity"}),
+        .rename(columns={"bnf_name": "BNF Name", "actual_cost": "Actual Cost", "items": "Items", "quantity": "Quantity"}),
         hide_index=True,
         height=height,
     )
